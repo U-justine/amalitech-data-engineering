@@ -1,6 +1,6 @@
 # Design Notes
 
-How the system works, the decisions behind it, and what changed from the first version.
+How the system works, how the files connect to each other, and why it is built this way.
 
 ![ER diagram](ER%20DIAGRAM.png)
 
@@ -35,9 +35,53 @@ Deleting an order runs the same chain in reverse:
 - stock goes back, logged as `ORDER_CANCELLED`
 - the customer's spend and tier are recalculated
 
+## How the files connect
+
+Each folder builds on the ones before it. Tables come first, then the code that writes to them, then the code that reads from them.
+
+```
+01_schema            tables, keys, constraints
+   │
+   ├── 08_optimization/01_indexes      indexes on those tables
+   │
+   ├── 03_order_processing
+   │     fn_bulk_discount ──► used by sp_place_order
+   │     sp_place_order   ──► INSERT orders, order_details
+   │
+   ├── 04_triggers       react to those inserts and updates
+   │     order_details ──► trg_deduct_stock        ──► products.stock_qty
+   │     order_details ──► trg_update_order_total  ──► orders.total_amount
+   │     products      ──► trg_log_inventory       ──► inventory_logs
+   │     orders        ──► trg_update_customer_tier ──► customers.total_spent, tier
+   │
+   ├── 05_replenishment  UPDATE products.stock_qty (logged by trg_log_inventory)
+   │
+   ├── 06_views          read the tables
+   │
+   ├── 02_seed_data      products and customers
+   │
+   ├── 09_tests          call the procedures, check the results
+   │
+   └── 07_reports        read the tables and views
+```
+
+| Folder | Depends on | Used by | Why it sits here |
+|---|---|---|---|
+| `01_schema` | Nothing | Everything | Every other file reads or writes these tables. Foreign keys and constraints live here, so bad data is blocked no matter which file writes it. |
+| `08_optimization/01_indexes.sql` | `01_schema` | Views, reports, procedures | Indexes only need the tables, so they're created straight after them and every later query can use them. |
+| `03_order_processing` | `01_schema` | `09_tests` | `fn_bulk_discount` must exist before `sp_place_order`, which calls it. The procedure only inserts rows; it leaves stock and totals to the triggers. |
+| `04_triggers` | `01_schema` | Every insert, update and delete | Triggers are what keep stock, totals, tiers and the log correct automatically, so they must be in place before any data arrives. |
+| `05_replenishment` | `01_schema`, `04_triggers` | `09_tests` | The procedures label the change as `REPLENISHMENT` and `trg_log_inventory` records it. |
+| `06_views` | `01_schema` | `07_reports`, `09_tests` | Views only read data, so they can be created on empty tables. |
+| `02_seed_data` | `01_schema`, `04_triggers` | `09_tests`, `07_reports` | Loaded **after** the triggers, so each product's opening stock is logged as `INITIAL`. Without that, the log could never add up to the current stock. |
+| `09_tests` | Everything above | — | `01_test_customer_orders.sql` places the sample orders through `sp_place_order`, so the triggers fire and the log is written. The other test files check the results and roll back. |
+| `07_reports` | Tables, views, sample orders | — | Reports only read, so they need data to show. |
+
+This dependency order is the reason for the setup order in the main [README](../README.md#setup-pgadmin).
+
 ## Key decisions
 
-**Totals are recalculated, never added to.** `orders.total_amount` and `customers.total_spent` are always rebuilt from the rows beneath them. A re-run, a cancellation or a deleted line can't leave them wrong. This is what fixed the doubling bug in the first version.
+**Totals are recalculated, never added to.** `orders.total_amount` and `customers.total_spent` are always rebuilt from the rows beneath them. A re-run, a cancellation or a deleted line can't leave them wrong, and a customer's spending is never counted twice.
 
 **Each kind of stock change has one owner.** Orders change stock only through `trg_deduct_stock`. Replenishment changes it only through the two replenishment procedures. `sp_place_order` never touches stock itself, so nothing is subtracted twice.
 
@@ -80,20 +124,6 @@ Opening stock is logged as `INITIAL`, so for every product `SUM(change_qty)` equ
 - A tier is based on lifetime spend, and can go down if orders are cancelled.
 - Discounts apply per product line, based on that line's quantity.
 - Auto-replenishment fills each product to 2x its reorder level by default. A flat target, such as 100 units for everything, would overstock slow items like the bookshelf (reorder level 10) and barely cover fast ones like the coffee mug (reorder level 100).
-
-## Changes from the first version
-
-| First version | Problem | Now |
-|---|---|---|
-| `UPDATE customers SET total_spent = total_spent + 2050` after each order | Spending was typed by hand, and re-running doubled it (Alice showed 4,100 instead of 2,050) | Calculated by trigger from the orders |
-| `DELETE FROM orders` to reset the simulation | Stock stayed reduced, and the log pointed at deleted orders | Deleting an order restores stock and logs `ORDER_CANCELLED` |
-| `place_order(order_id, product_id, qty)`, called once per product | No stock check, and the order had to be created separately | One `CALL` per order, with validation and a clear error |
-| `fn_log_restock` logged increases only | Manual decreases left no trace | Every change is logged |
-| No opening stock in the log | History couldn't be reconciled with current stock | `INITIAL` rows, plus a reconciliation report |
-| `vw_top_category_customer`: two CTEs side by side, grouped by name | Not actually nested, and same-name customers would merge | A true nested CTE in `07_reports/03`, grouped by `customer_id` |
-| `vw_low_stock` used `<=` | Flagged products sitting exactly at their reorder level | Uses `<` |
-| No `DROP ... IF EXISTS` | Scripts failed on a second run | Table, trigger and function scripts can be re-run |
-| Order lines could be edited directly | An edit changed the line without updating stock, the order total or the log | `trg_block_line_update` blocks edits; cancel and re-place instead |
 
 ## Possible extensions
 

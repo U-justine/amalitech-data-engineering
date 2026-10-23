@@ -41,7 +41,7 @@ inventory-order-management/
 ├── Graphs/                 Charts of the reports, captured in pgAdmin
 │
 └── docs/
-    ├── design_notes.md     How it works, decisions, changes
+    ├── design_notes.md     How it works, how the files connect, and why
     └── ER DIAGRAM.png      ER diagram (pgAdmin)
 ```
 

@@ -79,7 +79,7 @@ The demo runs these steps, then rolls everything back:
 | 1 | Deleting all orders resets every customer to 0 spent, Bronze |
 | 2 | Re-placing Alice's order gives 2,050, not double |
 
-This guards against the bug from the first version, where re-running the simulation doubled every customer's total.
+This proves a customer's spending is always recalculated from their orders, so re-running orders can never count it twice.
 
 ### 06 · Final state: exported tables
 
