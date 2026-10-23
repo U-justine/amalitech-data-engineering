@@ -43,7 +43,7 @@ inventory-order-management/
 │
 └── docs/
     ├── design_notes.md     How it works, decisions, changes
-    └── ER DIGRAM.png       ER diagram (pgAdmin)
+    └── ER DIAGRAM.png       ER diagram (pgAdmin)
 ```
 
 Every numbered folder has its own `README.md` explaining its files.
