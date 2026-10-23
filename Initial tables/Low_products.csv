@@ -1,0 +1,5 @@
+"product_id","name","category","stock_qty","reorder_level","shortfall","suggested_order_qty","stock_status"
+7,"HD Webcam","Electronics",12,15,3,18,"LOW"
+10,"Bookshelf","Furniture",8,10,2,12,"LOW"
+11,"Desk Lamp LED","Accessories",14,15,1,16,"LOW"
+20,"Wireless Presenter","Electronics",10,12,2,14,"LOW"

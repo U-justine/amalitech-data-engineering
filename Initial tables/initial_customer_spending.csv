@@ -1,0 +1,21 @@
+"customer_id","customer_name","email","tier","order_count","items_bought","total_spent","avg_order_value","total_saved","favourite_category","last_order_date","spend_rank","pct_of_revenue"
+1,"Alice Smith","alice.smith@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+2,"Bob Johnson","bob.johnson@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+3,"Charlie Brown","charlie.brown@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+4,"Diana Prince","diana.prince@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+5,"Ethan Hunt","ethan.hunt@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+6,"Fatima Al-Sayed","fatima.alsayed@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+7,"Jean Paul Nkurunziza","jeanpaul.nk@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+8,"Marie Claire Uwase","marieclaire.uwase@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+9,"David Ochieng","david.ochieng@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+10,"Grace Mukamana","grace.mukamana@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+11,"Hassan Abdi","hassan.abdi@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+12,"Ivy Chen","ivy.chen@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+13,"Jack O'Connor","jack.oconnor@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+14,"Keziah Wambui","keziah.wambui@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+15,"Liam Neeson","liam.neeson@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+16,"Monica Geller","monica.geller@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+17,"Nathan Drake","nathan.drake@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+18,"Olivia Pope","olivia.pope@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+19,"Peter Parker","peter.parker@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
+20,"Queen Latifah","queen.latifah@gmail.com","Bronze",0,0,0,0,0,NULL,NULL,NULL,0
