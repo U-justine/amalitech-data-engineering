@@ -14,7 +14,7 @@ A PostgreSQL database for an e-commerce company. It manages products, customers 
 - **Replenishment.** [Restock one product](05_replenishment/01_sp_replenish_product.sql), or [every product below its reorder level](05_replenishment/02_sp_auto_replenish.sql) at once.
 - **Views and reports.** [Views](06_views/) and [reports](07_reports/) cover order summaries, low stock, customer spending and inventory history. Several are built as a CTE inside a CTE.
 - **Indexes.** [Each one](08_optimization/01_indexes.sql) comes with [before/after timings](08_optimization/02_explain_plans.sql) measured on 500,000 test rows.
-- **Tests.** [14 automated checks](09_tests/) cover order placement, replenishment, data protection and recalculation. Each check prints **PASS** or **FAIL** in pgAdmin's Messages tab. Every test script rolls back its changes afterwards, except `01_test_customer_orders.sql`, which saves the 10 sample orders.
+- **Tests.** [14 automated checks](09_tests/) cover order placement, data protection and recalculation, and a step-by-step demo shows replenishment. Each check prints **PASS** or **FAIL** in pgAdmin's Messages tab. Every test script rolls back its changes afterwards, except `01_test_customer_orders.sql`, which saves the 10 sample orders.
 
 ## Requirements
 
