@@ -2,7 +2,7 @@
 
 How the system works, the decisions behind it, and what changed from the first version.
 
-![ER diagram](ER%20DIGRAM.png)
+![ER diagram](ER%20DIAGRAM.png)
 
 ## Tables
 

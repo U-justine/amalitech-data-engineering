@@ -89,6 +89,7 @@ Exported from pgAdmin into [`tables/`](tables/):
 |---|---|
 | `Customer_orders.csv` | Total spent and tier for customers 1–10 |
 | `customer_tier_leaderboard.csv` | The same, sorted by spend |
+| `Best_selling_products.csv` | Top 5 products by quantity sold, with category and revenue ([`07_reports/02_low_stock_report.sql`](../07_reports/02_low_stock_report.sql), query 3) |
 | `recent_orders.csv` | The 5 most recent orders |
 | `orders_discounts.csv` | The 5 most recent order lines, with discounts |
 | `inventory_audit_log.csv` | The 10 most recent log rows |

@@ -2,7 +2,7 @@
 
 A PostgreSQL database for an e-commerce company. It manages products, customers and orders, and keeps stock levels correct automatically. Every inventory change is logged for auditing, customers are grouped into Bronze, Silver and Gold tiers by spending, bulk discounts are applied to large orders, and low stock can be replenished in one call.
 
-![ER diagram](docs/ER%20DIGRAM.png)
+![ER diagram](docs/ER%20DIAGRAM.png)
 
 ## Features
 
@@ -14,8 +14,7 @@ A PostgreSQL database for an e-commerce company. It manages products, customers 
 - **Replenishment.** [Restock one product](05_replenishment/01_sp_replenish_product.sql), or [every product below its reorder level](05_replenishment/02_sp_auto_replenish.sql) at once.
 - **Views and reports.** [Views](06_views/) and [reports](07_reports/) cover order summaries, low stock, customer spending and inventory history. Several are built as a CTE inside a CTE.
 - **Indexes.** [Each one](08_optimization/01_indexes.sql) comes with [before/after timings](08_optimization/02_explain_plans.sql) measured on 500,000 test rows.
-- **Tests.** [5 test scripts](09_tests/) cover order placement, replenishment, data protection and recalculation. Each of the automated checks prints **PASS** or **FAIL** in pgAdmin's Messages tab, and every script rolls back its changes afterwards:
-
+- **Tests.** [14 automated checks](09_tests/) cover order placement, replenishment, data protection and recalculation. Each check prints **PASS** or **FAIL** in pgAdmin's Messages tab. Every test script rolls back its changes afterwards, except `01_test_customer_orders.sql`, which saves the 10 sample orders.
 
 ## Requirements
 
@@ -39,11 +38,11 @@ inventory-order-management/
 │   ├── outputs images/
 │   └── tables/
 ├── Initial tables/         Exports of the data before any orders
-├── Graphs/                 Charts and tables captured in pgAdmin
+├── Graphs/                 Charts of the reports, captured in pgAdmin
 │
 └── docs/
     ├── design_notes.md     How it works, decisions, changes
-    └── ER DIAGRAM.png       ER diagram (pgAdmin)
+    └── ER DIAGRAM.png      ER diagram (pgAdmin)
 ```
 
 Every numbered folder has its own `README.md` explaining its files.
@@ -321,7 +320,7 @@ Screenshots and exported tables are in [`09_tests/`](09_tests/README.md), and in
 
 | Deliverable | Files |
 |---|---|
-| Database schema | [`01_schema/`](01_schema/), [`docs/ER DIGRAM.png`](docs/ER%20DIGRAM.png) |
+| Database schema | [`01_schema/`](01_schema/), [`docs/ER DIAGRAM.png`](docs/ER%20DIAGRAM.png) |
 | Order placement & stock updates | [`01_sp_place_order.sql`](03_order_processing/01_sp_place_order.sql), [`01_trg_deduct_stock.sql`](04_triggers/01_trg_deduct_stock.sql), [`02_trg_update_order_total.sql`](04_triggers/02_trg_update_order_total.sql) |
 | Inventory tracking | [`03_trg_log_inventory.sql`](04_triggers/03_trg_log_inventory.sql), [`04_inventory_audit_history.sql`](07_reports/04_inventory_audit_history.sql) |
 | Customer categorization | [`04_trg_update_customer_tier.sql`](04_triggers/04_trg_update_customer_tier.sql), [`03_customer_tier_report.sql`](07_reports/03_customer_tier_report.sql) |
