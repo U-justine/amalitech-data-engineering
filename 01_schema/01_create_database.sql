@@ -1,4 +1,4 @@
--- Creates a fresh INVENTORY database and connects to it.
+-- Creates INVENTORY database
 -- DROP DATABASE IF EXISTS INVENTORY;
 
 CREATE DATABASE INVENTORY;
