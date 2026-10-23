@@ -41,4 +41,5 @@ UPDATE orders
 
 -- Results: Check that totals and tiers updated automatically
 SELECT * FROM vw_order_summary ORDER BY order_id;
-SELECT customer_id, name, total_spent, tier FROM customers WHERE customer_id <= 10 ORDER BY customer_id;
+SELECT customer_id, name, total_spent, 
+tier FROM customers WHERE customer_id <= 10 ORDER BY customer_id;

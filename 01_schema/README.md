@@ -32,4 +32,4 @@ Creates the database and its five tables, then adds the business-rule constraint
 
 Run `01` from the default `postgres` database, then run `02`–`07` on the new `inventory` database, in number order. The table scripts start with `DROP TABLE IF EXISTS … CASCADE`, so re-running them **erases all data**.
 
-ER diagrams: [`../ER DIGRAM.png`](../ER%20DIGRAM.png) (pgAdmin) and [`../docs/er_diagram.png`](../docs/er_diagram.png) (with data types and constraints).
+The ER diagram is in [`../docs/ER DIGRAM.png`](../docs/ER%20DIGRAM.png).

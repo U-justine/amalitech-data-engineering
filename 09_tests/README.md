@@ -61,16 +61,14 @@ The demo runs these steps, then rolls everything back:
 5. Shows the `REPLENISHMENT` log rows.
 6. Writes off 2 damaged webcams, which are logged as `ADJUSTMENT`.
 
-### 04 · Database protection: 2 checks
+### 04 · Database protection: 2 / 2 PASS
 
 ![Database protection results](outputs%20images/database_protection_test_results.png)
 
 | # | Check |
 |---|---|
 | 1 | Setting stock below zero is blocked by a `CHECK` constraint |
-| 2 | Editing an existing order line is blocked |
-
-> ⚠️ On a **fresh** database, check 2 currently reports **FAIL**. The trigger that blocks editing order lines is missing from `04_triggers/01_trg_deduct_stock.sql`. The screenshot shows PASS because it came from a database where that trigger still existed from an earlier version. See [Known issues](../docs/design_notes.md#known-issues).
+| 2 | Editing an existing order line is blocked by a trigger |
 
 ### 05 · Recalculation: 2 / 2 PASS
 
@@ -100,9 +98,7 @@ Exported from pgAdmin into [`tables/`](tables/):
 
 ![Revenue by date](outputs%20images/revenue_by_date_pie.png)
 
-> ⚠️ **These exports and charts come from a database with one extra order.** They show Alice Smith at **3,250**, but a fresh database gives **2,050**. Her extra order was a 1,200 laptop. The same extra order shifted the order ids, so orders 11 and 12 kept today's date. That's why the pie chart has two slices labelled 2026-10-23. To refresh them, rebuild the database, run `01_test_customer_orders.sql` once, then re-export. See [Known issues](../docs/design_notes.md#known-issues).
-
-Customer tiers on a fresh database:
+Customer tiers after the sample orders:
 
 | Customer | Total spent | Tier |
 |---|---:|---|

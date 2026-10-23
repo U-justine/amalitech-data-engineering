@@ -1,8 +1,0 @@
-"id","table_name"
-1,"customers"
-2,"orders"
-3,"order_details"
-4,"products"
-5,"inventory_logs"
-6,"vw_order_summary"
-7,"vw_low_stock"

@@ -44,16 +44,19 @@ DECLARE
     v_id  INT;
 BEGIN
     -- Unknown customer
+    v_msg := NULL;
     BEGIN CALL sp_place_order(99999, '[{"product_id":2,"quantity":1}]', v_id);
     EXCEPTION WHEN OTHERS THEN v_msg := SQLERRM; END;
     RAISE NOTICE 'Test 6 (Unknown customer rejected): %', CASE WHEN v_msg = 'Customer 99999 does not exist' THEN 'PASS' ELSE 'FAIL' END;
 
     -- Empty order
+    v_msg := NULL;
     BEGIN CALL sp_place_order(1, '[]', v_id);
     EXCEPTION WHEN OTHERS THEN v_msg := SQLERRM; END;
     RAISE NOTICE 'Test 7 (Empty order rejected): %', CASE WHEN v_msg = 'Order must contain at least one item' THEN 'PASS' ELSE 'FAIL' END;
 
     -- Zero quantity
+    v_msg := NULL;
     BEGIN CALL sp_place_order(1, '[{"product_id":2,"quantity":0}]', v_id);
     EXCEPTION WHEN OTHERS THEN v_msg := SQLERRM; END;
     RAISE NOTICE 'Test 8 (Zero quantity rejected): %', CASE WHEN v_msg LIKE 'Every item needs%' THEN 'PASS' ELSE 'FAIL' END;

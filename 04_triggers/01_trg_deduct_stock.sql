@@ -31,6 +31,11 @@ BEGIN
          WHERE product_id = OLD.product_id;
     END IF;
 
+    -- 3. Clear the labels so a later stock change in the same transaction
+    --    is not wrongly logged as part of this order
+    PERFORM set_config('inventory.change_type',  '', true);
+    PERFORM set_config('inventory.reference_id', '', true);
+
     RETURN NULL;
 END;
 $$;
@@ -41,3 +46,19 @@ CREATE TRIGGER trg_deduct_stock
 AFTER INSERT OR DELETE ON order_details
 FOR EACH ROW
 EXECUTE FUNCTION fn_trg_deduct_stock();
+
+-- Block editing of order lines
+CREATE OR REPLACE FUNCTION fn_trg_block_line_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'Order lines cannot be edited. Delete the order and place it again.';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_block_line_update ON order_details;
+CREATE TRIGGER trg_block_line_update
+BEFORE UPDATE ON order_details
+FOR EACH ROW
+EXECUTE FUNCTION fn_trg_block_line_update();

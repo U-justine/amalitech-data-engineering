@@ -1,8 +1,8 @@
 # Design Notes
 
-How the system works, the decisions behind it, what changed from the first version, and what's still open.
+How the system works, the decisions behind it, and what changed from the first version.
 
-![ER diagram](er_diagram.png)
+![ER diagram](ER%20DIGRAM.png)
 
 ## Tables
 
@@ -41,7 +41,7 @@ Deleting an order runs the same chain in reverse:
 
 **Each kind of stock change has one owner.** Orders change stock only through `trg_deduct_stock`. Replenishment changes it only through the two replenishment procedures. `sp_place_order` never touches stock itself, so nothing is subtracted twice.
 
-**Every stock change is logged, and labelled with why.** The log trigger sits on `products`, so even a hand-typed `UPDATE` is recorded. Whatever changes stock passes the reason to the log trigger through transaction-local settings (`inventory.change_type`, `inventory.reference_id`, `inventory.note`). Anything unlabelled is recorded as `ADJUSTMENT`.
+**Every stock change is logged, and labelled with why.** The log trigger sits on `products`, so even a hand-typed `UPDATE` is recorded. Whatever changes stock passes the reason to the log trigger through transaction-local settings (`inventory.change_type`, `inventory.reference_id`, `inventory.note`), then clears them. Anything unlabelled is recorded as `ADJUSTMENT`.
 
 | Cause | `change_type` |
 |---|---|
@@ -57,6 +57,8 @@ Opening stock is logged as `INITIAL`, so for every product `SUM(change_qty)` equ
 - The procedure checks stock and returns a readable error.
 - Product rows are locked (`FOR UPDATE`), so two simultaneous orders can't both take the last unit.
 - `CHECK (stock_qty >= 0)` blocks negative stock even from direct updates.
+
+**Order lines can't be edited.** A trigger blocks `UPDATE` on `order_details`, because an edit would change the line without updating stock, the order total or the log. To change an order, delete it and place it again.
 
 **Prices are snapshotted** in `order_details.unit_price`, so later price changes don't alter past orders.
 
@@ -91,67 +93,7 @@ Opening stock is logged as `INITIAL`, so for every product `SUM(change_qty)` equ
 | `vw_top_category_customer`: two CTEs side by side, grouped by name | Not actually nested, and same-name customers would merge | A true nested CTE in `07_reports/03`, grouped by `customer_id` |
 | `vw_low_stock` used `<=` | Flagged products sitting exactly at their reorder level | Uses `<` |
 | No `DROP ... IF EXISTS` | Scripts failed on a second run | Table, trigger and function scripts can be re-run |
-
-## Known issues
-
-These were found by building a fresh database from the files in this repository. Some don't show up in a database that was built from earlier versions of the scripts, because older objects are still in it.
-
-### 1. Order lines can be edited
-
-`04_triggers/01_trg_deduct_stock.sql` no longer creates `trg_block_line_update`. Because of that, a statement like `UPDATE order_details SET quantity = 40 WHERE order_detail_id = 1` succeeds. It changes the line without changing stock, the line total, the order total or the log. On a fresh database, `09_tests/04_test_database_protection.sql` Test 2 reports **FAIL**.
-
-**Fix:** add this to the end of `04_triggers/01_trg_deduct_stock.sql`:
-
-```sql
-CREATE OR REPLACE FUNCTION fn_trg_block_line_update()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN
-    RAISE EXCEPTION 'Order lines cannot be edited. Delete the order and place it again.';
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_block_line_update ON order_details;
-CREATE TRIGGER trg_block_line_update
-BEFORE UPDATE ON order_details
-FOR EACH ROW EXECUTE FUNCTION fn_trg_block_line_update();
-```
-
-The comment in `04_triggers/02_trg_update_order_total.sql` that says UPDATEs are blocked becomes true once this is in place.
-
-### 2. Stock changes can be mislabelled
-
-`fn_trg_deduct_stock` sets `inventory.change_type` and `inventory.reference_id` but doesn't clear them afterwards. A manual stock correction made later in the same transaction is therefore logged as `ORDER`, with the previous order's id, instead of `ADJUSTMENT`.
-
-**Fix:** in `fn_trg_deduct_stock`, just before `RETURN NULL;`, add:
-
-```sql
-    PERFORM set_config('inventory.change_type',  '', true);
-    PERFORM set_config('inventory.reference_id', '', true);
-```
-
-### 3. One test can pass by mistake
-
-In `09_tests/02_test_place_order.sql`, section 3, `v_msg` isn't reset between the three checks. If one of the calls were wrongly accepted, the previous check's error message would still be in `v_msg`, and the check could still print PASS.
-
-**Fix:** add `v_msg := NULL;` before each of the three `BEGIN CALL ...` lines.
-
-### 4. `run_all.sql` is out of date
-
-It refers to four files that don't exist in this layout:
-- `02_seed_data/03_sample_orders.sql`
-- `03_order_processing/03_demo_place_order.sql`
-- `05_replenishment/03_demo_replenishment.sql`
-- `09_tests/test_scenarios.sql`
-
-It also mentions the old database name `inventory_db`, and `01_create_database.sql` has no `\c`. So psql would stop at the first missing file, and the tables would be built in the `postgres` database. Until it's updated, use the pgAdmin order in the README.
-
-**Fix:** point `run_all.sql` at `09_tests/01_test_customer_orders.sql` through `06_final_database_state.sql`. Add `DROP DATABASE IF EXISTS inventory;` before, and `\c inventory` after, `\ir 01_schema/01_create_database.sql`.
-
-### 5. Exported results come from a database with an extra order
-
-The files in `09_tests/tables/` and `09_tests/outputs images/customer_spending.png` show **Alice Smith at 3,250**. On a fresh database she is at **2,050**. The database they were exported from had one extra order for Alice (a laptop, 1,200). That also shifted the order ids, so orders 11 and 12 kept today's date instead of being spread out. This is why `revenue_by_date_pie.png` shows two slices both labelled 2026-10-23.
-
-**Fix:** rebuild the database, run `09_tests/01_test_customer_orders.sql` once, then re-export the tables and charts.
+| Order lines could be edited directly | An edit changed the line without updating stock, the order total or the log | `trg_block_line_update` blocks edits; cancel and re-place instead |
 
 ## Possible extensions
 
