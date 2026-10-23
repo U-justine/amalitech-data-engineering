@@ -196,9 +196,9 @@ Sections of [`02_explain_plans.sql`](08_optimization/02_explain_plans.sql):
 Sections of [`02_test_place_order.sql`](09_tests/02_test_place_order.sql):
 - [valid order](09_tests/02_test_place_order.sql#L9-L22)
 - [insufficient stock](09_tests/02_test_place_order.sql#L24-L38)
-- [bad data](09_tests/02_test_place_order.sql#L40-L60)
-- [discount thresholds](09_tests/02_test_place_order.sql#L62-L66)
-- [cancellation](09_tests/02_test_place_order.sql#L68-L80)
+- [bad data](09_tests/02_test_place_order.sql#L40-L63)
+- [discount thresholds](09_tests/02_test_place_order.sql#L65-L69)
+- [cancellation](09_tests/02_test_place_order.sql#L71-L82)
 
 Steps of [`03_test_replenishment.sql`](09_tests/03_test_replenishment.sql):
 1. [low-stock list](09_tests/03_test_replenishment.sql#L8-L11)
@@ -318,17 +318,23 @@ Screenshots and exported tables are in [`09_tests/`](09_tests/README.md), and in
 
 ## Deliverables
 
-| Deliverable | Files |
+| Deliverable (as named in the brief) | Files |
 |---|---|
-| Database schema | [`01_schema/`](01_schema/), [`docs/ER DIAGRAM.png`](docs/ER%20DIAGRAM.png) |
-| Order placement & stock updates | [`01_sp_place_order.sql`](03_order_processing/01_sp_place_order.sql), [`01_trg_deduct_stock.sql`](04_triggers/01_trg_deduct_stock.sql), [`02_trg_update_order_total.sql`](04_triggers/02_trg_update_order_total.sql) |
-| Inventory tracking | [`03_trg_log_inventory.sql`](04_triggers/03_trg_log_inventory.sql), [`04_inventory_audit_history.sql`](07_reports/04_inventory_audit_history.sql) |
-| Customer categorization | [`04_trg_update_customer_tier.sql`](04_triggers/04_trg_update_customer_tier.sql), [`03_customer_tier_report.sql`](07_reports/03_customer_tier_report.sql) |
-| Bulk discounts | [`02_fn_bulk_discount.sql`](03_order_processing/02_fn_bulk_discount.sql), [bulk discount report](07_reports/03_customer_tier_report.sql#L77-L90) |
+| Database Schema | [`01_schema/`](01_schema/), [`docs/ER DIAGRAM.png`](docs/ER%20DIAGRAM.png) |
+| SQL Queries: order placement and stock updates | [`01_sp_place_order.sql`](03_order_processing/01_sp_place_order.sql), [`01_trg_deduct_stock.sql`](04_triggers/01_trg_deduct_stock.sql), [`02_trg_update_order_total.sql`](04_triggers/02_trg_update_order_total.sql) |
+| SQL Queries: inventory tracking | [`03_trg_log_inventory.sql`](04_triggers/03_trg_log_inventory.sql), [`04_inventory_audit_history.sql`](07_reports/04_inventory_audit_history.sql) |
+| SQL Queries: customer categorization by spending | [`04_trg_update_customer_tier.sql`](04_triggers/04_trg_update_customer_tier.sql), [`03_customer_tier_report.sql`](07_reports/03_customer_tier_report.sql) |
 | Views | [`06_views/`](06_views/) |
-| Replenishment system | [`05_replenishment/`](05_replenishment/), [`03_test_replenishment.sql`](09_tests/03_test_replenishment.sql) |
-| Report summaries | [`07_reports/`](07_reports/) |
+| Replenishment System | [`05_replenishment/`](05_replenishment/), [`03_test_replenishment.sql`](09_tests/03_test_replenishment.sql) |
+| Report Summaries | [`07_reports/`](07_reports/) |
+
+### Additional
+
+| Item | Files |
+|---|---|
+| Bulk discounts | [`02_fn_bulk_discount.sql`](03_order_processing/02_fn_bulk_discount.sql), [bulk discount report](07_reports/03_customer_tier_report.sql#L77-L90) |
 | Performance | [`08_optimization/`](08_optimization/) |
 | Tests | [`09_tests/`](09_tests/) |
+| Charts | [`Graphs/`](Graphs/README.md) |
 
 For how the pieces fit together and why, see [`docs/design_notes.md`](docs/design_notes.md).
