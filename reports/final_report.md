@@ -1,37 +1,87 @@
 # Final Report: TMDB Movie Data Analysis
 
 ## 1. Methodology
-This project fetches data for 19 movie IDs (18 valid blockbusters plus one invalid ID `0` used to test 404 error handling) using the TMDb REST API. The pipeline is modularized into a `src` directory for maintainability.
 
-Data cleaning involved:
-- Flattening nested lists (genres, companies, countries).
-- Extracting the top 5 cast members and the director from the `credits` endpoint.
-- Treating `0` values for budget, revenue, and runtime as missing (`NaN`) since TMDb uses `0` to mean "unknown".
-- Converting budgets and revenues to millions of USD.
-- Filtering out unreleased movies and removing duplicates.
+### Data extraction
+The pipeline requests `/movie/{id}?append_to_response=credits` from the TMDb API for the **19 IDs** in the brief.
+ID `0` is invalid: it returns a 404, which is logged and recorded in `data/raw/fetch_failures.json`, leaving **18 movies**.
 
-The API fetch module includes timeout, retry, and 404 logging to ensure robust data collection.
+API robustness (`src/fetch_movies.py`):
+- 10-second timeout on every request
+- up to 3 attempts for timeouts, connection errors and server errors, waiting 2 s then 4 s
+- a 404 is logged and skipped without retrying
+- Python `logging` with timestamps and levels
+- raw responses cached in `data/raw/` (delete `data/raw/tmdb_movies_raw.json` to fetch again)
 
-## 2. KPIs & Searches Implemented
-The project successfully generated rankings for:
-- Highest Revenue
-- Highest Budget
-- Highest/Lowest Profit
-- Highest/Lowest ROI (filtered to budgets >= $10M)
-- Most Voted
-- Highest/Lowest Rated (filtered to >= 10 votes)
-- Most Popular
+### Cleaning (`src/clean_movies.py`)
+All 11 steps of the brief, in order:
+1. Dropped `adult`, `imdb_id`, `original_title`, `video`, `homepage`.
+2–3. Flattened `belongs_to_collection`, `genres`, `spoken_languages`, `production_countries`, `production_companies` (`|`-separated); extracted the full cast, cast size, director(s) and crew size from `credits`.
+4. Inspected every extracted column with `value_counts()`; no anomalies were found.
+5. Converted numeric columns with `errors="coerce"` and `release_date` to datetime.
+6. Replaced 0 budget/revenue/runtime with NaN, converted money to million USD, set `vote_average` to NaN where `vote_count = 0`, replaced placeholder text in `overview`/`tagline` with NaN.
+7. Removed duplicate IDs and rows with no ID or title.
+8. Kept rows with at least 10 non-NaN values.
+9. Kept only `Released` movies and dropped `status`.
+10–11. Reordered to the 22 required columns and reset the index.
 
-Additionally, custom search functions for **Bruce Willis** and **Uma Thurman + Quentin Tarantino** were implemented as required. Because the provided 19-movie list contains exclusively modern blockbusters, neither actor appears in the dataset, resulting in empty (but fully functional) search outputs.
+The cleaned data is saved to `data/processed/tmdb_movies_clean.csv` (18 rows × 22 columns), and the saved file is
+read back to check the column order and that there are no duplicate IDs.
+Profit, ROI, franchise flag and release year are then added for analysis only.
 
-## 3. Key Findings
-- **Highest Revenue:** *Avengers: Endgame* ($2,927M)
-- **Highest ROI:** *Avatar* (12.3x)
-- **Top Franchise:** The Avengers Collection ($7,904M total)
-- **Top Director:** James Cameron ($5,188M total)
-- **Franchises vs Standalone:** Franchises have a higher average budget ($218M vs $180M) but slightly lower median ROI (7.84 vs 9.62). However, this comparison is biased because only 2 standalone movies are in the dataset (both massive hits).
+### Analysis
+- **EDA:** overview of types and missing values, summary statistics, genre and year counts, correlations.
+- **KPIs:** one UDF, `rank_movies()`, produces all 10 rankings (ROI limited to budget ≥ $10M, ratings to ≥ 10 votes).
+- **Searches:** filter the genres, full cast and director columns, then sort as the brief asks.
+- **Franchise vs standalone, top franchises and top directors** with `groupby().agg()`. Co-directors are grouped as one team.
+
+## 2. Results
+
+### KPIs (top result for each)
+
+| KPI | Movie | Value |
+|---|---|---|
+| Highest revenue | Avengers: Endgame | $2,939M |
+| Highest budget | Avengers: Endgame | $356M |
+| Highest profit | Avatar | $2,687M |
+| Lowest profit | Star Wars: The Last Jedi | $1,034M |
+| Highest ROI (budget ≥ $10M) | Avatar | 12.3× |
+| Lowest ROI (budget ≥ $10M) | Star Wars: The Last Jedi | 4.4× |
+| Most voted | The Avengers | 40,161 votes |
+| Highest rated (≥ 10 votes) | Avengers: Endgame | 8.25 |
+| Lowest rated (≥ 10 votes) | Jurassic World: Fallen Kingdom | 6.52 |
+| Most popular | Avengers: Endgame | 88.15 |
+
+### Required searches
+- **Search 1** (Science Fiction + Action + Bruce Willis, by rating): **0 results**.
+- **Search 2** (Uma Thurman + directed by Quentin Tarantino, by runtime): **0 results**.
+
+Neither actor appears in the full cast of any of the 18 films, and Tarantino directed none of them, so empty
+results are correct for this dataset.
+
+### Franchise vs standalone
+
+| | Franchise (16) | Standalone (2) |
+|---|---|---|
+| Mean revenue | $1,691M | $1,765M |
+| Median ROI | 7.84 | 9.62 |
+| Mean budget | $218M | $180M |
+| Mean popularity | 37.73 | 40.67 |
+| Mean rating | 7.39 | 7.44 |
+
+### Top franchise and director
+- **The Avengers Collection:** 4 films, $1,111M total budget, $7,915M total revenue, mean rating 7.96.
+- **James Cameron:** 2 films, $5,188M total revenue. The **Russo brothers** have the highest mean rating (8.25).
+
+## 3. Key findings and conclusions
+- Bigger budgets do not mean better returns: budget and ROI are negatively correlated (≈ -0.4).
+- Popularity and rating are strongly correlated (r ≈ 0.90).
+- Franchises spend more on average, but the two standalone films have a higher median ROI and are slightly more popular.
+- Yearly totals peak in 2015, 2018 and 2019, mostly because more films from the list were released in those years.
 
 ## 4. Limitations
-- The sample size is only 18 movies, all of which are blockbusters. This means the insights cannot be generalized to the entire film industry.
-- TMDb revenue only includes theatrical releases, not streaming or merchandising.
-- Some genre averages are based on only 1 movie, making them statistically unreliable.
+- Only 18 hand-picked blockbusters, all of them hits, so the results describe this list, not the film industry.
+- Only 2 standalone films, which makes that comparison weak.
+- Several genres have only 1–2 films, so their ROI figures are unreliable.
+- TMDb revenue covers theatrical box office only, and TMDb figures (votes, popularity) change over time.
+  All numbers here come from the fetch on 25 October 2026; a new fetch can give slightly different values.

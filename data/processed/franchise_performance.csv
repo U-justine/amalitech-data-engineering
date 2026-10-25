@@ -1,6 +1,6 @@
 belongs_to_collection,Movies,Total_Budget,Mean_Budget,Total_Revenue,Mean_Revenue,Mean_Rating
 The Avengers Collection,4,1111.0,277.75,7915.2,1978.8,7.96
-Star Wars Collection,2,545.0,272.5,3402.63,1701.32,6.99
+Star Wars Collection,2,545.0,272.5,3402.63,1701.32,6.98
 Jurassic Park Collection,2,320.0,160.0,2982.01,1491.0,6.61
 Avatar Collection,1,237.0,237.0,2923.71,2923.71,7.61
 Frozen Collection,2,300.0,150.0,2727.9,1363.95,7.23

@@ -1,85 +1,87 @@
 import os
 import json
 import time
+import logging
 import requests
 import pandas as pd
 
-RAW_DIR = "data/raw"
-RAW_JSON = os.path.join(RAW_DIR, "tmdb_movies_raw.json")
-RAW_CSV = os.path.join(RAW_DIR, "tmdb_movies_raw.csv")
+RAW_JSON = "data/raw/tmdb_movies_raw.json"
+RAW_CSV = "data/raw/tmdb_movies_raw.csv"
+FAILURES_JSON = "data/raw/fetch_failures.json"
 
 # Settings for API robustness
-TIMEOUT = 10
-RETRIES = 3
+TIMEOUT = 10   # seconds to wait for an answer
+RETRIES = 3    # how many times to try each movie
+
+# Show log messages with the time and level (INFO, WARNING, ERROR)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+logging.getLogger("matplotlib").setLevel(logging.WARNING)  # hide chart library messages
+logger = logging.getLogger(__name__)
 
 
-# Save the raw movie data as a CSV file before cleaning.
-def save_raw_csv(movies):
-    df_raw = pd.DataFrame(movies)
-    df_raw.to_csv(RAW_CSV, index=False)
-    print(f"Saved raw data to: {RAW_CSV}")
-    print(f"Raw shape: {df_raw.shape[0]} rows x {df_raw.shape[1]} columns")
-    return df_raw
+# Request one movie from TMDb. Returns the movie, or None if it failed.
+def fetch_movie(movie_id, api_key):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}"
+    params = {"api_key": api_key, "append_to_response": "credits"}
+
+    for attempt in range(1, RETRIES + 1):
+        try:
+            r = requests.get(url, params=params, timeout=TIMEOUT)
+
+            # The movie was found
+            if r.status_code == 200:
+                return r.json()
+
+            # The movie does not exist (for example ID 0), so do not retry
+            if r.status_code == 404:
+                logger.warning("Movie %s not found (404), skipping", movie_id)
+                return None
+
+            # Any other error: log it and try again
+            logger.warning("Movie %s: status %s (attempt %s/%s)", movie_id, r.status_code, attempt, RETRIES)
+
+        except requests.exceptions.RequestException as e:
+            # Timeout or connection problem: log it and try again
+            logger.warning("Movie %s: %s (attempt %s/%s)", movie_id, e, attempt, RETRIES)
+
+        # Wait a bit longer after each failed attempt (2s, 4s)
+        time.sleep(2 * attempt)
+
+    logger.error("Movie %s failed after %s attempts", movie_id, RETRIES)
+    return None
 
 
-# Fetch movie details from TMDb and save them for later use.
+# Fetch all movies from TMDb and save them for later use.
 def fetch_movies(movie_ids, api_key):
-    os.makedirs(RAW_DIR, exist_ok=True)
+    os.makedirs("data/raw", exist_ok=True)
 
     # Reuse the saved data if it is already available.
     if os.path.exists(RAW_JSON):
-        print("Loading from raw cache...")
-        with open(RAW_JSON, "r") as f:
-            movies = json.load(f)
-        save_raw_csv(movies)
-        return movies
+        logger.info("Loading movies from the saved file %s", RAW_JSON)
+        with open(RAW_JSON, "r", encoding="utf-8") as f:
+            return json.load(f)
 
     movies = []
-    failures = []
+    failed_ids = []
 
-    # Request each movie's details, including cast and crew.
-    for mid in movie_ids:
-        url = f"https://api.themoviedb.org/3/movie/{mid}"
-        params = {"api_key": api_key, "append_to_response": "credits"}
-        
-        # Robust API request: timeout + retries
-        response = None
-        for attempt in range(1, RETRIES + 1):
-            try:
-                r = requests.get(url, params=params, timeout=TIMEOUT)
-                
-                # Handle 404 (e.g., ID 0) immediately without retrying
-                if r.status_code == 404:
-                    print(f"Failed: {mid} (Status: 404 Not Found)")
-                    failures.append({"id": mid, "status": 404})
-                    response = None
-                    break
-                
-                # Check for other HTTP errors
-                r.raise_for_status()
-                response = r
-                break  # Success!
-                
-            except requests.exceptions.RequestException as e:
-                print(f"Attempt {attempt}/{RETRIES} failed for {mid}: {e}")
-                if attempt < RETRIES:
-                    time.sleep(2) # Wait 2 seconds before retrying
-        
-        # Process successful response
-        if response is not None:
-            movies.append(response.json())
-            print(f"Fetched: {response.json()['title']}")
+    for movie_id in movie_ids:
+        movie = fetch_movie(movie_id, api_key)
+        if movie is None:
+            failed_ids.append(movie_id)
+        else:
+            movies.append(movie)
+            logger.info("Fetched: %s", movie["title"])
+        time.sleep(0.3)  # small pause so we do not overload the API
 
-        time.sleep(0.3)
+    logger.info("Fetched %s of %s movies", len(movies), len(movie_ids))
 
-    # Save the original API responses as JSON.
-    with open(RAW_JSON, "w") as f:
+    # Save the original API data as JSON and CSV.
+    with open(RAW_JSON, "w", encoding="utf-8") as f:
         json.dump(movies, f, indent=2)
+    pd.DataFrame(movies).to_csv(RAW_CSV, index=False)
 
-    # Save failed requests so they can be checked later.
-    if failures:
-        with open(os.path.join(RAW_DIR, "fetch_failures.json"), "w") as f:
-            json.dump(failures, f, indent=2)
+    # Save the IDs that failed so they can be checked later.
+    with open(FAILURES_JSON, "w", encoding="utf-8") as f:
+        json.dump(failed_ids, f)
 
-    save_raw_csv(movies)
     return movies
