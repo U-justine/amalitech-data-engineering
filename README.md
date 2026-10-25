@@ -25,6 +25,7 @@ PostgreSQL 14 or later. Developed in pgAdmin on PostgreSQL 18, and also tested o
 ```
 inventory-order-management/
 ├── README.md
+├── run_all.sql             Builds everything in one go (psql)
 │
 ├── 01_schema/              Database, 5 tables, constraints
 ├── 02_seed_data/           20 products, 20 customers
@@ -47,11 +48,36 @@ inventory-order-management/
 
 Every numbered folder has its own `README.md` explaining its files.
 
-## Setup (pgAdmin)
+## Assignment phases
 
-1. Open the Query Tool on the default **postgres** database and run [`01_schema/01_create_database.sql`](01_schema/01_create_database.sql). This creates the **inventory** database.
-2. Refresh **Databases**, then open the Query Tool on **inventory**.
-3. Open and run (F5) each file below **in this order**:
+| Phase | Where it's implemented |
+|---|---|
+| 1. Database design and schema | [`01_schema/`](01_schema/), [`02_seed_data/`](02_seed_data/) |
+| 2. Order placement and inventory management | [`03_order_processing/`](03_order_processing/), [`04_triggers/`](04_triggers/), [`04_inventory_audit_history.sql`](07_reports/04_inventory_audit_history.sql) |
+| 3. Monitoring and reporting | [`07_reports/`](07_reports/), [`02_fn_bulk_discount.sql`](03_order_processing/02_fn_bulk_discount.sql) |
+| 4. Stock replenishment and automation | [`05_replenishment/`](05_replenishment/), [`04_triggers/`](04_triggers/) |
+| 5. Advanced queries and optimization | [`06_views/`](06_views/), [`08_optimization/`](08_optimization/) |
+
+## Setup
+
+First create the database: open pgAdmin's Query Tool on the default **postgres** database and run [`01_schema/01_create_database.sql`](01_schema/01_create_database.sql). This creates the **inventory** database.
+
+Then build everything else in one of two ways.
+
+### Option A: one command (psql)
+
+[`run_all.sql`](run_all.sql) runs all 21 files below in the right order and stops at the first error:
+
+```
+psql -U postgres -d inventory -f run_all.sql
+```
+
+You can also open pgAdmin's **PSQL Tool** on **inventory** and run `\i 'C:/path/to/inventory-order-management/run_all.sql'`. It won't work in the Query Tool, which can't run other files. It's safe to re-run: the tables are dropped and recreated, so you always end up with the same 10 orders.
+
+### Option B: file by file (pgAdmin Query Tool)
+
+1. Refresh **Databases**, then open the Query Tool on **inventory**.
+2. Open and run (F5) each file below **in this order**:
 
 | # | File | # | File |
 |---|---|---|---|
@@ -67,11 +93,11 @@ Every numbered folder has its own `README.md` explaining its files.
 | 10 | [`04_triggers/01_trg_deduct_stock.sql`](04_triggers/01_trg_deduct_stock.sql) | 20 | [`02_seed_data/02_customers_data.sql`](02_seed_data/02_customers_data.sql) |
 | | | 21 | [`09_tests/01_test_customer_orders.sql`](09_tests/01_test_customer_orders.sql) |
 
-After that, run the [tests](#tests), [reports](#reports) and [explain plans](#optimization) in any order. Test results appear in pgAdmin's **Messages** tab.
+After either option, run the [tests](#tests), [reports](#reports) and [explain plans](#optimization) in any order. Test results appear in pgAdmin's **Messages** tab.
 
 **Why this order:** the sample orders in `09_tests/01_test_customer_orders.sql` go through `sp_place_order`. The procedure, triggers and views must therefore exist first. Otherwise stock wouldn't be deducted and nothing would be logged.
 
-> Run `09_tests/01_test_customer_orders.sql` only **once**. It saves its orders permanently, so running it again places every order a second time.
+> In Option B, run `09_tests/01_test_customer_orders.sql` only **once**. It saves its orders permanently, so running it again on its own places every order a second time. To start over, use `run_all.sql`.
 
 ## All SQL files and queries
 

@@ -77,7 +77,7 @@ Each folder builds on the ones before it. Tables come first, then the code that 
 | `09_tests` | Everything above | — | `01_test_customer_orders.sql` places the sample orders through `sp_place_order`, so the triggers fire and the log is written. The other test files check the results and roll back. |
 | `07_reports` | Tables, views, sample orders | — | Reports only read, so they need data to show. |
 
-This dependency order is the reason for the setup order in the main [README](../README.md#setup-pgadmin).
+This dependency order is the reason for the setup order in the main [README](../README.md#setup), and it's the order [`run_all.sql`](../run_all.sql) follows.
 
 ## Key decisions
 
