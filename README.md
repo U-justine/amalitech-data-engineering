@@ -66,6 +66,8 @@ tmdb-movie-analysis/
 │   ├── analyze_franchises.py       # Top franchises
 │   ├── analyze_directors.py        # Top directors
 │   └── visualize.py                # Chart generation
+├── tests/
+│   └── test_pipeline.py            # Simple tests (404, retry, cleaning, search)
 ├── main.py                         # Runs the full pipeline
 ├── requirements.txt
 ├── .env                            # API key (not committed)
@@ -137,6 +139,19 @@ python main.py
 jupyter notebook notebooks/tmdb_movie_analysis.ipynb
 ```
 
+### 5. Run the tests
+
+```bash
+python -m pytest
+```
+
+The tests in [`tests/test_pipeline.py`](./tests/test_pipeline.py) use a fake API answer, so they need no API key or internet. They check that:
+
+- a 404 (like ID `0`) is skipped without retrying
+- a timeout is retried
+- the cleaning follows the assignment rules (column order, duplicates, unreleased movies, zeros, 0 votes, placeholders)
+- the Bruce Willis search finds a matching movie
+
 ---
 
 ## Outputs
@@ -188,6 +203,7 @@ jupyter notebook notebooks/tmdb_movie_analysis.ipynb
 | `python-dotenv` | Loading the API key from `.env` |
 | `numpy` | Missing-value handling |
 | `jupyter` | Notebook environment |
+| `pytest` | Running the tests |
 
 Minimum versions are listed in [`requirements.txt`](./requirements.txt).
 
