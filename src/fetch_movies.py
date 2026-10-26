@@ -44,8 +44,9 @@ def fetch_movie(movie_id, api_key):
             # Timeout or connection problem: log it and try again
             logger.warning("Movie %s: %s (attempt %s/%s)", movie_id, e, attempt, RETRIES)
 
-        # Wait a bit longer after each failed attempt (2s, 4s)
-        time.sleep(2 * attempt)
+        # Wait a bit longer before the next attempt (2s, then 4s)
+        if attempt < RETRIES:
+            time.sleep(2 * attempt)
 
     logger.error("Movie %s failed after %s attempts", movie_id, RETRIES)
     return None
