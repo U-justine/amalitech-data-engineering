@@ -1,6 +1,6 @@
 -- ETL Script: Moves data from OLTP (source) to Star Schema (warehouse)
 
--- Full reload: run 04_create_star_schema.sql first (it drops and recreates the empty
+-- Full reload: run Star_schema.sql first (it drops and recreates the empty
 -- warehouse tables), then run this script.
 
 SET search_path = healthcare_analysis_data_warehouse, healthcare_oltp;
@@ -222,7 +222,7 @@ ANALYZE bridge_encounter_procedures;
 ANALYZE agg_dx_px_pair;
 
 -- 9. Verification Checks
--- Makes sure the data in the warehouse matches the source.
+
 SELECT 'fact rows = oltp encounters' AS check, 
        (SELECT COUNT(*) FROM fact_encounters) = (SELECT COUNT(*) FROM healthcare_oltp.encounters) AS ok
 UNION ALL
