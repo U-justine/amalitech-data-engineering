@@ -1,6 +1,6 @@
 -- Synthetic Test Data Generator
 
-SET search_path = oltp;
+SET search_path = healthcare_oltp;
 
 -- Set seed to ensure the data is the same every time
 SELECT setseed(0.42);

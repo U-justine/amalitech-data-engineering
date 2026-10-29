@@ -1,5 +1,5 @@
 -- Sample data for the OLTP schema
-SET search_path = oltp;
+SET search_path = healthcare_oltp;
 
 -- Insert sample specialties
 INSERT INTO specialties VALUES

@@ -1,8 +1,8 @@
 -- Normalized (3NF) OLTP schema for Healthcare Analytics
 
-DROP SCHEMA IF EXISTS oltp CASCADE;
-CREATE SCHEMA oltp;
-SET search_path = oltp;
+DROP SCHEMA IF EXISTS healthcare_oltp CASCADE;
+CREATE SCHEMA healthcare_oltp;
+SET search_path = healthcare_oltp;
 
 -- Table for patient demographics
 CREATE TABLE patients (
