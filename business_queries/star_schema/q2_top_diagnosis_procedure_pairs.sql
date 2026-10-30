@@ -1,6 +1,5 @@
--- =====================================================================
 -- Q2 (Star Schema): Top Diagnosis-Procedure Pairs
--- =====================================================================
+
 -- Purpose: Same result as q2_top_diagnosis_procedure_pairs, but faster.
 -- Trick: a pair can never be more frequent than its rarer code. We first
 -- find a minimum count needed to reach the top 10, then skip every code

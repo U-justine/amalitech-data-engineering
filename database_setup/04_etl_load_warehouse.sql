@@ -1,6 +1,6 @@
 -- ETL Script: Moves data from OLTP (source) to Star Schema (warehouse)
 
--- Full reload: run Star_schema.sql first (it drops and recreates the empty
+-- Full reload: run star_schema.sql first (it drops and recreates the empty
 -- warehouse tables), then run this script.
 
 SET search_path = healthcare_analysis_data_warehouse, healthcare_oltp;

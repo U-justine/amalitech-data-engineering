@@ -1,0 +1,360 @@
+HEALTHCARE ANALYTICS LAB - PART 3.3: STAR SCHEMA QUERIES
+
+These are the four business questions from Part 2, rewritten for my star
+schema (healthcare_analysis_data_warehouse). The files are in
+business_queries/star_schema/.
+
+How I compared them: I rebuilt everything from scratch on my laptop
+(PostgreSQL 18.6, pgAdmin, default settings), then ran every query three
+times in a row and used the middle value of pgAdmin's "Total query runtime".
+The OLTP times are from Part 2 and were measured the same way, in the same
+session. Every star query returns exactly the same rows as its OLTP version
+(1,296 / 10 / 12 / 444 rows).
+
+
+QUESTION 1: Monthly Encounters by Specialty
+-------------------------------------------
+
+    SET search_path = healthcare_analysis_data_warehouse;
+
+    WITH patient_month AS (
+        -- Step 1: One row per (month, specialty, visit type, patient).
+        -- date_key is YYYYMMDD, so date_key / 100 = YYYYMM (integer division).
+        SELECT
+            f.encounter_date_key / 100 AS yyyymm,
+            f.specialty_key,
+            f.encounter_type_key,
+            f.patient_key,
+            COUNT(*)                   AS encounters
+        FROM fact_encounters f
+        GROUP BY 1, 2, 3, 4
+    ),
+    monthly_counts AS (
+        -- Step 2: Roll up to (month, specialty, visit type).
+        -- Each row above is one distinct patient, so COUNT(*) = unique patients.
+        -- This replaces COUNT(DISTINCT), which would force a big sort.
+        SELECT
+            yyyymm,
+            specialty_key,
+            encounter_type_key,
+            SUM(encounters) AS total_encounters,
+            COUNT(*)        AS unique_patients
+        FROM patient_month
+        GROUP BY yyyymm, specialty_key, encounter_type_key
+    ),
+    months AS (
+        -- Step 3: One row per month, e.g. 202405 -> 2024-05-01.
+        SELECT DISTINCT
+            date_key / 100 AS yyyymm,
+            month_start_date
+        FROM dim_date
+        WHERE date_key <> -1                      -- skip the Unknown date
+    )
+    -- Step 4: Add readable names to the final rows only.
+    SELECT
+        m.month_start_date    AS encounter_month,
+        s.specialty_name,
+        t.encounter_type_name AS encounter_type,
+        c.total_encounters,
+        c.unique_patients
+    FROM monthly_counts c
+    JOIN months             m ON m.yyyymm             = c.yyyymm
+    JOIN dim_specialty      s ON s.specialty_key      = c.specialty_key
+    JOIN dim_encounter_type t ON t.encounter_type_key = c.encounter_type_key
+    ORDER BY encounter_month, s.specialty_name, encounter_type;
+
+Joins: 3 (dim_specialty, dim_encounter_type and a list of months from
+dim_date). The OLTP version has 2 joins, so the star version actually has
+one more. The difference is what gets joined: in the OLTP query both joins
+happen on all 1,000,004 rows, while here the dimensions are only joined to
+the 1,296 final rows.
+
+Performance:
+- OLTP: 4.81 s
+- Star: 1.98 s (my three runs: 2.14, 1.66 and 1.98 s)
+- About 2.4 times faster
+
+Why it's faster:
+- specialty_key is stored on the fact row, so there's no trip through
+  providers to find the specialty.
+- The month comes from integer maths (encounter_date_key / 100) instead of
+  calling date_trunc() on every row.
+- In the OLTP query the slow part was COUNT(DISTINCT patient_id), which
+  makes PostgreSQL sort a million rows on text columns and spill to disk.
+  Here I count unique patients in two steps: first I group down to one row
+  per month, specialty, visit type and patient, then I count those rows.
+  Everything is grouped on small integers, so it stays in memory.
+- The names are only looked up at the very end, for the final 1,296 rows.
+
+The unique patient count is the one thing I couldn't store ahead of time,
+because distinct counts don't add up across months. That's why Q1 still
+takes about two seconds.
+
+
+QUESTION 2: Top Diagnosis-Procedure Pairs
+-----------------------------------------
+
+Version A, using the bridge tables (with a "threshold" shortcut):
+
+    SET search_path = healthcare_analysis_data_warehouse;
+
+    WITH dx_freq AS (
+        -- How many visits each diagnosis appears on
+        SELECT diagnosis_key, COUNT(*) AS n
+        FROM bridge_encounter_diagnoses
+        GROUP BY diagnosis_key
+    ),
+    px_freq AS (
+        -- How many visits each procedure appears on
+        SELECT procedure_key, COUNT(*) AS n
+        FROM bridge_encounter_procedures
+        GROUP BY procedure_key
+    ),
+    threshold AS (
+        -- Quick estimate: the 10th best pair among the 20 most common
+        -- diagnoses x 20 most common procedures. The real top 10 must be
+        -- at least this high.
+        SELECT COALESCE(MIN(c), 0) AS t
+        FROM (
+            SELECT COUNT(*) AS c
+            FROM bridge_encounter_diagnoses  bd
+            JOIN bridge_encounter_procedures bp ON bp.encounter_key = bd.encounter_key
+            WHERE bd.diagnosis_key IN (SELECT diagnosis_key FROM dx_freq ORDER BY n DESC LIMIT 20)
+              AND bp.procedure_key IN (SELECT procedure_key FROM px_freq ORDER BY n DESC LIMIT 20)
+            GROUP BY bd.diagnosis_key, bp.procedure_key
+            ORDER BY c DESC
+            LIMIT 10
+        ) seed
+    ),
+    pair_counts AS (
+        -- Exact count, but only for codes common enough to reach the top 10
+        SELECT bd.diagnosis_key, bp.procedure_key, COUNT(*) AS encounter_count
+        FROM bridge_encounter_diagnoses  bd
+        JOIN bridge_encounter_procedures bp ON bp.encounter_key = bd.encounter_key
+        WHERE bd.diagnosis_key IN (SELECT diagnosis_key FROM dx_freq
+                                   WHERE n >= (SELECT t FROM threshold))
+          AND bp.procedure_key IN (SELECT procedure_key FROM px_freq
+                                   WHERE n >= (SELECT t FROM threshold))
+        GROUP BY bd.diagnosis_key, bp.procedure_key
+    ),
+    top_pairs AS (
+        SELECT diagnosis_key, procedure_key, encounter_count
+        FROM pair_counts
+        ORDER BY encounter_count DESC, diagnosis_key, procedure_key
+        LIMIT 10
+    )
+    SELECT dx.icd10_code, dx.icd10_description,
+           px.cpt_code,   px.cpt_description,
+           tp.encounter_count
+    FROM top_pairs tp
+    JOIN dim_diagnosis dx ON dx.diagnosis_key = tp.diagnosis_key
+    JOIN dim_procedure px ON px.procedure_key = tp.procedure_key
+    ORDER BY tp.encounter_count DESC, dx.icd10_code, px.cpt_code;
+
+Version B, using the summary table built by the ETL:
+
+    SET search_path = healthcare_analysis_data_warehouse;
+
+    SELECT
+        dx.icd10_code,
+        dx.icd10_description,
+        px.cpt_code,
+        px.cpt_description,
+        a.encounter_count
+    FROM agg_dx_px_pair a
+    JOIN dim_diagnosis dx ON dx.diagnosis_key = a.diagnosis_key
+    JOIN dim_procedure px ON px.procedure_key = a.procedure_key
+    ORDER BY a.encounter_count DESC, dx.icd10_code, px.cpt_code
+    LIMIT 10;
+
+Joins: 3 in version A for the final answer (bridge to bridge, then the two
+dimensions), the same as the OLTP version, plus one more bridge-to-bridge
+join on only the most common codes to find the threshold. 2 in version B
+(only the two dimensions, for 10 rows).
+
+Performance:
+- OLTP: 12.08 s
+- Star with bridges: 3.41 s (runs: 3.50, 2.98 and 3.41 s), about 3.5 times
+  faster
+- Star with the summary table: 0.089 s (runs: 0.080, 0.094 and 0.089 s),
+  about 136 times faster. EXPLAIN ANALYZE showed 0.79 ms of actual database
+  work; the rest is pgAdmin sending and showing the result.
+
+Both versions return the same top 10. The first is I10 (Hypertension) with
+99213 (Office Visit) on 33,480 encounters.
+
+Why it's faster:
+- The bridge tables only hold two integer keys per row, with no text.
+- The ETL removed duplicate codes (one row per visit and code), so a
+  plain COUNT(*) is correct. The OLTP version needs COUNT(DISTINCT
+  encounter_id), which means a huge sort that goes to disk.
+- The threshold shortcut: a pair can never appear on more visits than its
+  rarer code does. So I first take the 20 most common diagnoses and the 20
+  most common procedures and find the 10th best pair among them. The real
+  top 10 must be at least that high (3,755 encounters on my data). Then I
+  only count pairs for codes that appear on at least that many visits:
+  74 of the 2,000 diagnoses and 75 of the 1,000 procedures. That cuts the
+  bridge join from about 4.9 million pair rows to about 670,000, and the
+  answer is still exact.
+- Even with the shortcut, version A is still the slowest star query,
+  because it still has to join and count hundreds of thousands of pairs
+  every time it runs.
+- The summary table removes the explosion from the query completely: the
+  ETL counts all 1,222,182 pairs once, and the index on encounter_count
+  DESC lets PostgreSQL read just the top 10 rows. The cost is that the
+  numbers are only as fresh as the last ETL run.
+
+
+QUESTION 3: 30-Day Readmission Rate
+-----------------------------------
+
+    SET search_path = healthcare_analysis_data_warehouse;
+
+    WITH by_specialty AS (
+        -- Step 1: Count stays and readmissions per specialty (integer keys).
+        -- The flags are BOOLEAN, so we count them with FILTER (WHERE ...).
+        SELECT
+            f.specialty_key,
+            COUNT(*)                                   AS inpatient_discharges,
+            COUNT(*) FILTER (WHERE f.is_readmitted_30d) AS readmissions_30d
+        FROM fact_encounters f
+        WHERE f.is_index_inpatient_stay                -- matches the partial index
+        GROUP BY f.specialty_key
+    )
+    -- Step 2: Add specialty names and calculate the rate.
+    SELECT
+        s.specialty_name,
+        b.inpatient_discharges,
+        b.readmissions_30d,
+        ROUND(100.0 * b.readmissions_30d / b.inpatient_discharges, 2) AS readmission_rate_pct
+    FROM by_specialty b
+    JOIN dim_specialty s ON s.specialty_key = b.specialty_key
+    ORDER BY readmission_rate_pct DESC, s.specialty_name;   -- highest rate first
+
+Joins: 1 (dim_specialty). The OLTP version has 3, including a self-join on
+the encounters table.
+
+Performance:
+- OLTP: 0.83 s
+- Star: 0.21 s (runs: 0.395, 0.212 and 0.110 s)
+- About 3.9 times faster
+
+Same answer as the OLTP query: Cardiology is highest at 6.39%, and overall
+8,901 of the 150,393 completed inpatient stays were readmitted (5.92%).
+
+Why it's faster:
+- The self-join is gone. The ETL already found the next inpatient admission
+  for every stay and stored the result as two TRUE/FALSE columns
+  (is_index_inpatient_stay and is_readmitted_30d).
+- The query just counts those flags with COUNT(*) FILTER (WHERE ...).
+- The partial index ix_fe_index_stays only holds the ~150,000 inpatient
+  stays, not all million encounters, and it already includes the
+  readmission flag.
+- No COUNT(DISTINCT) is needed, because each stay is exactly one fact row.
+
+This was also the easiest query to write. The readmission rule lives in the
+ETL, so every report uses the same definition.
+
+
+QUESTION 4: Revenue by Specialty & Month
+----------------------------------------
+
+    SET search_path = healthcare_analysis_data_warehouse;
+
+    -- Query 1: Revenue by specialty for each month
+    -- Step 1 (CTE): add up the money using only integer keys.
+    --   claim_date_key / 100 turns 20240510 into 202405 (the month),
+    --   so 900,000 fact rows become 444 groups before any text is touched.
+    -- Step 2: join the names onto those 444 rows only.
+    --   202405 * 100 + 1 = 20240501, the first day of the month in dim_date,
+    --   which gives the 'YYYY-MM' label.
+    -- (My first version joined dim_date and dim_specialty first and grouped by
+    --  the text labels. That sorted 900,000 rows on text and spilled ~35 MB to
+    --  disk: 2.24 s. This version: 1.20 s.)
+    WITH monthly_revenue AS (
+        SELECT
+            f.claim_date_key / 100      AS claim_yyyymm,
+            f.specialty_key,
+            SUM(f.total_allowed_amount) AS total_allowed,
+            SUM(f.claim_count)          AS claim_count
+        FROM fact_encounters f
+        WHERE f.claim_date_key <> -1          -- skip encounters never billed
+        GROUP BY f.claim_date_key / 100, f.specialty_key
+    )
+    SELECT
+        d.year_month     AS claim_month,
+        s.specialty_name,
+        m.total_allowed,
+        m.claim_count
+    FROM monthly_revenue m
+    JOIN dim_date d      ON d.date_key      = m.claim_yyyymm * 100 + 1
+    JOIN dim_specialty s ON s.specialty_key = m.specialty_key
+    ORDER BY claim_month, m.total_allowed DESC;
+
+    -- Query 2: Overall revenue by specialty (to find the highest earner)
+    SELECT
+        s.specialty_name,
+        SUM(f.total_allowed_amount)                             AS total_allowed,
+        RANK() OVER (ORDER BY SUM(f.total_allowed_amount) DESC) AS revenue_rank
+    FROM fact_encounters f
+    JOIN dim_specialty s ON f.specialty_key = s.specialty_key
+    GROUP BY s.specialty_name
+    ORDER BY total_allowed DESC;
+
+Joins: 2 for Query 1 (dim_date and dim_specialty) and 1 for Query 2. The
+OLTP version needs 3 joins for each query (billing -> encounters ->
+providers -> specialties).
+
+Performance (Query 1, the monthly breakdown):
+- OLTP: 1.49 s
+- Star, my first version: 2.24 s (runs: 2.24, 1.90 and 2.35 s), which was
+  slower than OLTP
+- Star, rewritten version above: 1.20 s (runs: 2.28, 1.20 and 0.24 s),
+  about 1.2 times faster than OLTP
+- Running the whole file (Query 1 + Query 2) went from 2.82 s with my
+  first version to under a second with the rewrite (0.88 and 0.74 s).
+
+What happened with my first version: it joined dim_date and dim_specialty
+first and then grouped by the text labels (year_month and specialty_name).
+EXPLAIN ANALYZE showed that reading the fact table and doing the joins took
+only about 265 ms, but then PostgreSQL had to sort 900,000 rows by two text
+columns. That sort didn't fit in memory and wrote about 35 MB to disk, and
+it took about one second on its own. Running VACUUM didn't change anything:
+PostgreSQL still read the whole table, which is correct when you need 90%
+of the rows anyway.
+
+The fix was the same idea as in Q1: group on the integer keys first
+(claim_date_key / 100 and specialty_key), which shrinks 900,000 rows to 444,
+and only then join the names.
+
+Why it's faster than OLTP:
+- Billing was already summed per visit in the ETL (total_allowed_amount,
+  claim_count, claim_date_key), so the query never touches the billing
+  table.
+- specialty_key is on the fact row, so the big join between billing and
+  encounters (a hash table of a million encounters) is gone.
+- Grouping happens on two integers instead of TO_CHAR() text and the
+  specialty name.
+
+The gain is the smallest of the four questions. The OLTP query was already
+fairly cheap, because billing is a narrow table and providers and
+specialties are tiny. The fact table is much wider (about 25 columns), so
+reading it costs more per row.
+
+
+SUMMARY
+-------
+
+  Query                     OLTP      Star      Speedup   Joins (OLTP -> star)
+  Q1 monthly encounters     4.81 s    1.98 s    2.4x      2 -> 3 (on 1,296 rows)
+  Q2 pairs, bridges        12.08 s    3.41 s    3.5x      3 -> 3
+  Q2 pairs, summary table  12.08 s    0.089 s   ~136x     3 -> 2
+  Q3 readmissions           0.83 s    0.21 s    3.9x      3 -> 1
+  Q4 revenue (Query 1)      1.49 s    1.20 s    1.2x      3 -> 2
+
+The biggest wins came from work I moved into the ETL: the readmission
+flags (Q3) and the pair counts (Q2 summary table). Putting specialty_key on
+the fact table removed the providers hop from every query. Q4 also taught
+me that a star schema doesn't make a query fast by itself. The query has to
+group on the integer keys first and add the names afterwards, otherwise it
+can end up slower than the OLTP version.

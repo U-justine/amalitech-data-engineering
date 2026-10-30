@@ -1,0 +1,351 @@
+HEALTHCARE ANALYTICS LAB - PART 2: OLTP QUERY ANALYSIS
+
+How I tested
+------------
+I ran everything in PostgreSQL 18.6 (64-bit, Windows) on my own laptop,
+using pgAdmin with the default settings. The normalized schema is in its own schema called
+healthcare_oltp (database_setup/01_create_oltp_schema.sql). I translated the
+lab's MySQL DDL to PostgreSQL (DATETIME became TIMESTAMP, and the inline
+INDEX lines became separate CREATE INDEX statements).
+
+I also added indexes on all the foreign key columns. MySQL creates those
+automatically but PostgreSQL doesn't, and I wanted the "before" numbers to
+show the cost of the normalized design itself, not just missing indexes.
+
+The four sample encounters from the brief are much too small to measure
+anything (every query finishes in under a millisecond), so I kept them and
+generated test data on top with database_setup/03_generate_test_data.sql:
+
+    encounters               1,000,004
+    encounter_diagnoses      2,502,126   (1-4 per encounter)
+    encounter_procedures     1,999,537   (0-4 per encounter)
+    billing                    900,411   (about 90% of encounters)
+    patients 100,000, providers 600, specialties 12, departments 12,
+    diagnoses 2,000, procedures 1,000, visit dates 2023 to 2025
+
+The script uses a fixed random seed, so it produces exactly the same data
+every time it runs. It took 4 min 1 s on my laptop.
+
+The times below are pgAdmin's "Total query runtime". Before timing, I
+rebuilt everything from scratch (scripts 01 to 04). Then I ran each query
+three times in a row and used the middle value, because the first run is
+often slower while the data is being read into memory. The row counts and the details
+about sorting come from running the queries with EXPLAIN ANALYZE.
+
+All four queries are in business_queries/oltp_normalized/.
+
+
+QUESTION 1: Monthly Encounters by Specialty
+-------------------------------------------
+
+SQL Query:
+
+    SET search_path = healthcare_oltp;
+
+    WITH encounter_specialty AS (
+        -- Step 1: Attach month and specialty to every encounter.
+        -- We must join through providers to get the specialty.
+        SELECT
+            date_trunc('month', e.encounter_date)::date AS encounter_month,
+            s.specialty_name,
+            e.encounter_type,
+            e.patient_id
+        FROM encounters e
+        JOIN providers   p ON p.provider_id  = e.provider_id
+        JOIN specialties s ON s.specialty_id = p.specialty_id
+    )
+    -- Step 2: Count encounters and unique patients.
+    SELECT
+        encounter_month,
+        specialty_name,
+        encounter_type,
+        COUNT(*)                   AS total_encounters,
+        COUNT(DISTINCT patient_id) AS unique_patients
+    FROM encounter_specialty
+    GROUP BY encounter_month, specialty_name, encounter_type
+    ORDER BY encounter_month, specialty_name, encounter_type;
+
+Schema Analysis:
+- Tables joined: encounters, providers, specialties
+- Number of joins: 2
+- The specialty isn't stored on the encounter, so I have to go through the
+  provider to get it (encounters -> providers -> specialties).
+
+Performance:
+- Execution time: 4.81 seconds (my three runs: 6.34, 4.81 and 4.34 s)
+- Estimated rows scanned: about 1,000,600 (all 1,000,004 encounters, plus
+  600 providers and 12 specialties)
+- After the joins there are still 1,000,004 rows, and all of them have to be
+  sorted to work out the unique patients. The sort doesn't fit in memory and
+  spills to disk (about 40 MB in my test). The result is 1,296 rows
+  (36 months x 12 specialties x 3 visit types).
+
+Bottleneck Identified:
+Surprisingly, the joins themselves are not the slow part. Providers and
+specialties are tiny tables, so the hash joins only take around half a
+second. Most of the time goes into the GROUP BY with COUNT(DISTINCT
+patient_id). PostgreSQL can only do a distinct count by sorting, so it has to
+sort all one million rows by month, specialty name, visit type and patient.
+Sorting on text columns like the specialty name makes that sort big, which is
+why it ends up on disk.
+
+On top of that, the month has to be calculated with date_trunc() for every
+single row, because there's no month column to group by, so the
+encounter_date index doesn't help. And every report that needs the specialty
+has to pay for the extra hop through providers again.
+
+
+QUESTION 2: Top Diagnosis-Procedure Pairs
+-----------------------------------------
+
+SQL Query:
+
+    SET search_path = healthcare_oltp;
+
+    WITH encounter_pairs AS (
+        -- Step 1: Pair each diagnosis with each procedure on the same visit.
+        SELECT
+            ed.encounter_id,
+            ed.diagnosis_id,
+            ep.procedure_id
+        FROM encounter_diagnoses  ed
+        JOIN encounter_procedures ep ON ep.encounter_id = ed.encounter_id
+    ),
+    pair_counts AS (
+        -- Step 2: Count visits per pair (using the ID numbers only).
+        -- DISTINCT is needed because a visit can list the same code twice.
+        SELECT
+            diagnosis_id,
+            procedure_id,
+            COUNT(DISTINCT encounter_id) AS encounter_count
+        FROM encounter_pairs
+        GROUP BY diagnosis_id, procedure_id
+    )
+    -- Step 3: Add the codes and descriptions, keep the top 10 pairs.
+    SELECT
+        d.icd10_code,
+        d.icd10_description,
+        pr.cpt_code,
+        pr.cpt_description,
+        pc.encounter_count
+    FROM pair_counts pc
+    JOIN diagnoses  d  ON d.diagnosis_id  = pc.diagnosis_id
+    JOIN procedures pr ON pr.procedure_id = pc.procedure_id
+    ORDER BY pc.encounter_count DESC, d.icd10_code, pr.cpt_code
+    LIMIT 10;
+
+The most common pair is I10 (Hypertension) with 99213 (Office Visit), on
+33,480 encounters.
+
+Schema Analysis:
+- Tables joined: encounter_diagnoses, encounter_procedures, diagnoses,
+  procedures
+- Number of joins: 3
+- How the two junction tables are combined: there's no direct link between a
+  diagnosis and a procedure. The only thing they have in common is
+  encounter_id, so I join the two junction tables on that. This pairs every
+  diagnosis of a visit with every procedure of the same visit, so a visit
+  with 3 diagnoses and 2 procedures turns into 6 rows. I need COUNT(DISTINCT
+  encounter_id) because some visits list the same code twice (about 19,000
+  duplicate diagnoses in my data), and without DISTINCT those visits would be
+  counted more than once.
+
+Performance:
+- Execution time: 12.08 seconds (the slowest of the four; my three runs:
+  12.08, 11.06 and 12.11 s)
+- Estimated rows scanned: about 4.5 million (2,502,126 diagnosis rows plus
+  1,999,537 procedure rows)
+- The join between the two junction tables produces 5,001,702 pair rows,
+  which are grouped into 1,222,182 distinct pairs before picking the top 10.
+  The sort for the distinct count spills about 100 MB to disk.
+
+Bottleneck Identified:
+This is the row explosion the brief warns about. Joining two many-to-many
+tables on encounter_id multiplies the rows: about 4.5 million rows go in and
+over 5 million come out. With real hospital data, where an inpatient stay can
+have ten or more codes of each kind, this would grow much faster.
+
+Those 5 million rows then have to be grouped with COUNT(DISTINCT), which
+again means a big sort, and it's too large for memory so it goes to disk.
+Because that sort depends on disk speed, this query is also the one most
+affected by how busy my laptop is.
+
+One thing I did on purpose: I group by the ID numbers first and only join the
+diagnosis and procedure descriptions at the end, for the final 10 rows. If
+the descriptions are joined before grouping, every one of the 5 million rows
+carries extra text through the sort, and the query gets a lot slower.
+
+
+QUESTION 3: 30-Day Readmission Rate
+-----------------------------------
+
+SQL Query:
+
+    SET search_path = healthcare_oltp;
+
+    WITH index_stays AS (
+        -- Step 1: Find every completed inpatient stay and its specialty.
+        SELECT
+            e.encounter_id,
+            e.patient_id,
+            e.discharge_date,
+            s.specialty_name
+        FROM encounters e
+        JOIN providers   p ON p.provider_id  = e.provider_id
+        JOIN specialties s ON s.specialty_id = p.specialty_id
+        WHERE e.encounter_type = 'Inpatient'
+          AND e.discharge_date IS NOT NULL
+    )
+    -- Step 2: Self-join - look for a later inpatient visit of the same patient.
+    -- LEFT JOIN keeps stays with no readmission, so they still count in the total.
+    SELECT
+        i.specialty_name,
+        COUNT(DISTINCT i.encounter_id)                       AS inpatient_discharges,
+        COUNT(DISTINCT i.encounter_id)
+            FILTER (WHERE r.encounter_id IS NOT NULL)        AS readmissions_30d,
+        ROUND(100.0 * COUNT(DISTINCT i.encounter_id)
+                          FILTER (WHERE r.encounter_id IS NOT NULL)
+                    / COUNT(DISTINCT i.encounter_id), 2)     AS readmission_rate_pct
+    FROM index_stays i
+    LEFT JOIN encounters r
+           ON r.patient_id      = i.patient_id
+          AND r.encounter_type  = 'Inpatient'
+          AND r.encounter_id   <> i.encounter_id
+          AND r.encounter_date  > i.discharge_date
+          AND r.encounter_date <= i.discharge_date + INTERVAL '30 days'
+    GROUP BY i.specialty_name
+    ORDER BY readmission_rate_pct DESC, i.specialty_name;
+
+Cardiology has the highest rate at 6.39%. Overall, 8,901 of the 150,393
+completed inpatient stays were followed by a readmission (5.92%).
+
+Schema Analysis:
+- Tables joined: encounters (the stay), providers, specialties, and
+  encounters again (the possible readmission)
+- Number of joins: 3, one of which is a self-join
+- How I detect a readmission: I take every inpatient visit that has a
+  discharge date, and look for another inpatient visit by the same patient
+  that starts after that discharge, but no more than 30 days later. I used
+  the inpatient-to-inpatient definition, which is the usual one in hospitals.
+  I used a LEFT JOIN so that stays without a readmission are still counted in
+  the total. If a patient came back twice within 30 days, the self-join gives
+  two rows for the same stay, so COUNT(DISTINCT) makes sure it only counts
+  once.
+
+Performance:
+- Execution time: 0.83 seconds (my three runs: 0.83, 0.56 and 0.93 s)
+- Estimated rows scanned: about 2 million, because the encounters table is
+  read twice (1,000,004 rows each time), plus providers and specialties
+- The 150,393 stays are matched with all of the same patients' other
+  inpatient visits, which gives 340,714 candidate rows. Only 9,312 of them
+  fall inside the 30-day window; the other 331,402 are thrown away. The 9,312
+  matches belong to 8,901 different stays, because some patients came back
+  more than once within 30 days.
+
+Bottleneck Identified:
+The problem here is the self-join on the biggest table. The encounters table
+has to be read twice and matched on patient_id. The 30-day condition is a
+range (after the discharge, but within 30 days), not an equality, so it can't
+be used to find matches directly. PostgreSQL first matches every inpatient
+visit of the same patient and only then filters out the ones outside the
+window.
+
+To be fair, PostgreSQL handles this quite well on my data. It uses a parallel
+hash join, so it's under a second. But the cost grows with the number of
+patients times the number of visits each one has, and the whole calculation
+is repeated every time someone asks the question, even though a readmission
+from last year will never change. It's also easy to get the definition
+slightly different from one analyst to the next (for example counting any
+return visit instead of only inpatient ones), which would give different
+answers.
+
+
+QUESTION 4: Revenue by Specialty & Month
+----------------------------------------
+
+SQL Query:
+
+    SET search_path = healthcare_oltp;
+
+    -- Query 1: Revenue by specialty for each month
+    WITH claim_specialty AS (
+        -- Step 1: Attach the specialty and month to every billing claim.
+        SELECT
+            TO_CHAR(b.claim_date, 'YYYY-MM') AS claim_month,
+            s.specialty_name,
+            b.allowed_amount
+        FROM billing b
+        JOIN encounters  e ON b.encounter_id = e.encounter_id
+        JOIN providers   p ON e.provider_id  = p.provider_id
+        JOIN specialties s ON p.specialty_id = s.specialty_id
+    )
+    -- Step 2: Sum the revenue and count claims per month/specialty.
+    SELECT
+        claim_month,
+        specialty_name,
+        SUM(allowed_amount) AS total_allowed,
+        COUNT(*)            AS claim_count
+    FROM claim_specialty
+    GROUP BY claim_month, specialty_name
+    ORDER BY claim_month, total_allowed DESC;
+
+    -- Query 2: Overall revenue by specialty
+    SELECT
+        s.specialty_name,
+        SUM(b.allowed_amount)                             AS total_allowed,
+        RANK() OVER (ORDER BY SUM(b.allowed_amount) DESC) AS revenue_rank
+    FROM billing b
+    JOIN encounters  e ON b.encounter_id = e.encounter_id
+    JOIN providers   p ON e.provider_id  = p.provider_id
+    JOIN specialties s ON p.specialty_id = s.specialty_id
+    GROUP BY s.specialty_name
+    ORDER BY total_allowed DESC;
+
+I used the claim date for the month, so this is revenue per billing month.
+Query 1 gives the monthly breakdown, and Query 2 answers the second part of
+the question ("which specialties generate the most revenue?"). Endocrinology
+comes first with $204.6 million in allowed amounts.
+
+Schema Analysis:
+- Tables joined: billing, encounters, providers, specialties
+- Number of joins: 3
+- JOIN chain: billing -> encounters -> providers -> specialties. The billing
+  table doesn't know anything about specialties, so I have to go through two
+  tables (encounters and providers) that I don't actually need any columns
+  from. They're only there to translate one key into the next.
+
+Performance:
+- Execution time: 1.49 seconds for Query 1 alone (the monthly breakdown,
+  which is what I compare with the star schema; my three runs: 2.91, 1.49
+  and 1.02 s). Running both queries together took 2.88 seconds.
+- Estimated rows scanned: about 1.9 million (900,411 billing rows and
+  1,000,004 encounters, plus providers and specialties)
+- 900,411 joined rows are grouped into 444 result rows (37 months x 12
+  specialties).
+
+Bottleneck Identified:
+The expensive part is the join chain. To find the specialty of each claim,
+PostgreSQL has to build a hash table of all one million encounters just to
+look up the provider of each claim. That join between two big tables (billing
+and encounters) takes most of the time. The joins to providers and
+specialties are cheap because those tables are small.
+
+The month also has to be calculated for every row with TO_CHAR(), and the
+grouping is on text values (the month label and the specialty name). The
+claim_date index doesn't help, because there's no date filter, only grouping.
+
+
+SUMMARY
+-------
+  Query   Joins   Rows scanned   Time      Main problem
+  Q1      2       ~1.0 M          4.81 s   COUNT(DISTINCT) sort of 1M rows, spills to disk
+  Q2      3       ~4.5 M         12.08 s   two junction tables -> 5M-row explosion
+  Q3      3 (*)   ~2.0 M          0.83 s   self-join on encounters, redone every time
+  Q4      3       ~1.9 M          1.49 s   billing -> encounters -> providers -> specialties
+  (*) including one self-join
+
+What all four have in common: the specialty is always at least two hops away
+from the encounter or the claim, months are calculated row by row while the
+query runs, and the heavier logic (distinct counts, readmissions, pairs) is
+recalculated from the raw rows every single time. That's exactly what the
+star schema is designed to fix.

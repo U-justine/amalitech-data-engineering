@@ -1,0 +1,256 @@
+HEALTHCARE ANALYTICS LAB - PART 3.4: ETL DESIGN
+
+The ETL moves data from the normalized source schema (healthcare_oltp) into
+my star schema (healthcare_analysis_data_warehouse). I wrote it as a working
+PostgreSQL script, database_setup/04_etl_load_warehouse.sql, so everything in
+sections 1-3 below is what the script actually does. In section 4 I also
+describe how I would run it in a real hospital setting, where you would load
+only the changes every night instead of reloading everything.
+
+To run it: first run star_schema.sql (it drops and recreates the empty
+warehouse, including the -1 "Unknown" rows), then run the ETL script.
+
+On my test data (1,000,004 encounters, about 2.5 million diagnosis rows,
+2 million procedure rows and 900,411 claims) the full load took 8 min 35 s
+on my laptop. At the end the script checks itself, and all three checks
+passed.
+
+The order matters because of the foreign keys:
+  1. dim_date
+  2. the small lookup dimensions (specialty, department, encounter type,
+     diagnosis, procedure)
+  3. dim_patient and dim_provider (the provider needs the specialty and
+     department keys, so it has to come after them)
+  4. staging tables with the per-encounter calculations
+  5. fact_encounters
+  6. the two bridge tables (they need the encounter_key from the fact)
+  7. agg_dx_px_pair (it needs both bridges)
+
+Steps 1 to 7 run inside a single transaction. If something fails halfway,
+nothing gets saved, so I never end up with a half-loaded warehouse.
+
+
+1. DIMENSION LOAD LOGIC
+
+dim_date
+I generate one row for every day from 2015 to 2035 with generate_series. The
+key is the date written as a number, like 20240510, which makes it easy to
+read and lets me get the month with date_key / 100. For each day I calculate
+the year, quarter, month name, a 'YYYY-MM' label, the first day of the month,
+the week number, the day name, whether it is a weekend, and a fiscal year
+that starts on 1 October. This only needs to run once. I used ON CONFLICT DO
+NOTHING so running it again doesn't break anything, and if the data ever goes
+past 2035 I just extend the range.
+
+dim_patient
+Patients come straight from the patients table, with a bit of cleaning:
+- first and last names are trimmed and capitalised properly
+- gender becomes 'M' or 'F', and anything else becomes 'U'
+- full_name is first name + last name
+- age_group is worked out from the date of birth (0-17, 18-39, 40-64, 65-79,
+  80+, or Unknown if there is no date of birth)
+
+I also store an md5 hash of the main fields (mrn, names, gender, date of
+birth). When a patient already exists, the script only updates the row if
+the hash is different, so unchanged patients are skipped. In SQL this is an
+INSERT ... ON CONFLICT (patient_id) DO UPDATE with a WHERE on the hash.
+
+I chose SCD Type 1 (just overwrite) for patients, because changes to a
+patient's details are usually corrections, like a misspelled name. The
+patient's age at the time of each visit is saved on the fact table, so
+overwriting the dimension doesn't change any history. One thing to keep in
+mind is that age_group goes out of date as people get older, so in practice
+it should be recalculated every night.
+
+dim_provider
+This one is SCD Type 2, because if a doctor moves from cardiology to internal
+medicine, their old visits should still count as cardiology. Each row is a
+version of the provider with effective_from, effective_to and is_current.
+
+In the initial load I join providers to the specialty and department
+dimensions to get their keys and names (falling back to -1 / 'Unknown' if a
+match is missing), clean the names, calculate a hash, and insert one current
+version per provider, valid from 1900-01-01 to 9999-12-31.
+
+On later loads the logic would be: look up the provider's current row. If
+there isn't one, insert it. If the hash changed, close the current row by
+setting effective_to and is_current = FALSE, then insert a new current row.
+If nothing changed, do nothing. A partial unique index on provider_id where
+is_current is true makes sure a provider can never have two current rows.
+
+The small lookup dimensions
+Specialty, department, diagnosis and procedure are simple upserts on their
+source ID. If a name or description changes, I just overwrite it, since a
+corrected description should show up everywhere. For diagnoses I also save
+the first letter of the ICD-10 code as icd10_chapter, which is useful for
+grouping. dim_encounter_type is a fixed list I insert by hand: 1 Outpatient,
+2 Inpatient, 3 ER.
+
+How dimension updates work, in short
+Patient details and code names are overwritten (Type 1). Provider changes
+keep history (Type 2). I never delete dimension rows, because fact rows point
+to them.
+
+
+2. FACT TABLE LOAD LOGIC
+
+Doing the calculations first
+Before loading the fact table, I calculate everything per encounter in
+temporary staging tables, so each encounter ends up with exactly one row of
+numbers:
+- diagnoses: how many distinct diagnoses, and which one is the primary
+  (sequence 1)
+- procedures: how many procedures
+- billing: number of claims, the first claim date, and the total claimed and
+  allowed amounts
+- readmissions: for every inpatient stay that has a discharge date, I look
+  for the same patient's next inpatient admission after that discharge. If
+  it starts within 30 days, the stay is flagged as readmitted, and I also
+  keep the number of days until that next admission.
+
+For the readmission lookup I copy the encounters into a temp table with an
+index on (patient_id, encounter_date), so finding "the next admission" is a
+quick index lookup for each stay instead of comparing every stay with every
+other visit.
+
+Doing this first is important. If I joined billing, diagnoses and procedures
+straight onto the encounters, the rows would multiply and the money totals
+would be counted several times.
+
+Looking up the dimension keys
+For each encounter I find:
+- the date keys for the visit date, the discharge date and the first claim
+  date (or -1 if there isn't one, e.g. a visit that was never billed)
+- patient_key from dim_patient
+- provider_key from the provider version that was valid on the visit date,
+  and the specialty_key from that same version
+- department_key from the encounter's department (or the provider's
+  department if that is missing)
+- encounter_type_key and primary_diagnosis_key
+
+Every lookup is a LEFT JOIN with COALESCE(..., -1). That way, if something
+can't be matched, the encounter still gets loaded and simply points to the
+"Unknown" row.
+
+Calculated values
+- patient age at the time of the visit
+- length of stay in hours and in days (left empty if the discharge date is
+  missing or somehow earlier than the admission)
+- the counts and money totals from staging (0 if there were none)
+- the readmission flags and days to next admission
+
+On my data this gave 150,393 completed inpatient stays, of which 8,901 were
+readmitted within 30 days (5.92%). That is exactly the same number the
+original OLTP query gives, which was a good sign that the logic is right.
+
+The fact table is loaded with one big INSERT ... SELECT. For incremental
+loads I would change this to INSERT ... ON CONFLICT (encounter_id) DO UPDATE,
+so an encounter that changed replaces its old row instead of being added
+twice.
+
+Missing or messy data
+- Anything that can't be matched to a dimension gets the -1 Unknown key, so
+  no encounter is lost and reports with inner joins still work.
+- A patient who hasn't been discharged yet gets discharge key -1 and no
+  length of stay, and isn't counted as a stay for readmissions until they
+  are discharged.
+- A visit without billing gets 0 for the amounts and claim_count = 0. The
+  claim count is what tells you "not billed yet" apart from "billed $0".
+- A visit without diagnoses gets a count of 0 and primary diagnosis -1.
+- The same code listed twice on one visit is only counted once.
+- If the discharge date is before the admission date, the length of stay is
+  left empty instead of being negative.
+
+At the end the script runs three checks: the number of fact rows matches the
+number of encounters (1,000,004), the total allowed amount matches the
+billing table exactly, and no encounter ended up with an unknown specialty.
+In a production version I would also log bad rows to a separate table and
+stop the run if the number of -1 keys suddenly jumps.
+
+
+3. BRIDGE TABLE LOAD LOGIC
+
+bridge_encounter_diagnoses
+Each row of encounter_diagnoses gets the encounter_key from the fact table
+(that's why the fact loads first) and the diagnosis_key from dim_diagnosis.
+I group by encounter and diagnosis, so if the same code appears twice on a
+visit it becomes one row, keeping the lowest sequence number. is_primary is
+true when that sequence is 1. This took 2,502,126 source rows down to
+2,482,009.
+
+bridge_encounter_procedures
+Same idea for procedures. Repeats are folded into a quantity column (for
+example two EKGs on the same visit), and I keep the date of the first time
+the procedure was done. 1,999,537 source rows became 1,974,342.
+
+Having exactly one row per visit and code is what lets the star schema
+version of Q2 use a plain COUNT(*) instead of the slower COUNT(DISTINCT).
+
+When loading incrementally, the easiest correct approach is to delete the
+bridge rows of each changed encounter and insert its current codes again.
+That also handles codes being removed or re-ordered.
+
+agg_dx_px_pair
+After the bridges are loaded, I join them on encounter_key and count how many
+encounters each diagnosis and procedure pair appears on, together with the
+first and last date the pair was seen. That's 1,222,182 pairs. Because the
+heavy work is done here, Q2 only has to read the top 10 rows from an index,
+which took 0.79 ms. Since one changed visit can affect many pairs, I would
+just rebuild this table completely every night.
+
+
+4. REFRESH STRATEGY
+
+What I did for the lab
+A full reload every time: run star_schema.sql and then the ETL. It's simple,
+always consistent, and about eight and a half minutes for a million
+encounters is fine for a load that runs at night.
+
+What I would do in a real setup
+I would run an incremental load every night, around 2 am. The clinical and
+finance teams look at these numbers daily, so nobody needs them to update
+every hour. If that changes later, the same logic can run more often in
+smaller batches. dim_date only needs extending once a year, and a full
+rebuild would only be needed when a definition changes (for example a new
+readmission rule), or maybe once a month as a safety check.
+
+To know what changed, the best option is change data capture from the source
+database (PostgreSQL logical replication or a tool like Debezium). If that
+isn't available, each source table needs an updated_at column, which the lab
+schema doesn't have, so I would have to ask the source team to add it. I
+would keep the time of the last successful load in a small control table and,
+on each run, pick up the encounters that are new or changed since then, plus
+any encounters whose diagnoses, procedures or billing changed. Only those get
+recalculated, upserted into the fact table and refreshed in the bridges, and
+then the summary table is rebuilt.
+
+The readmission flag needs extra care. A new admission today can turn a stay
+from two weeks ago into a readmission. So on every run I would also re-check
+the stays of the affected patients that were discharged in the last 30 days.
+That means the readmission rate for the most recent month is provisional and
+can still go up until the 30-day window has closed.
+
+Late-arriving facts
+- A visit entered late (say a paper record typed in two weeks later) is
+  loaded with its real visit date, so it lands in the right month. The
+  provider lookup uses the provider version from that date, not today's.
+  It also triggers the readmission re-check for that patient.
+- Claims normally arrive days or weeks after discharge. When they do, the
+  encounter counts as changed, so its billing totals and claim date are
+  recalculated and the fact row is updated. This means revenue for recent
+  months keeps moving for a couple of months, so reports should show a
+  "data as of" date.
+- If a visit refers to a patient or provider that hasn't been loaded yet, it
+  gets the -1 key for now (or a placeholder row with just the ID), and a
+  later step points it to the right row once the dimension data arrives.
+
+Keeping it safe
+The whole load runs as one transaction, so a failed run doesn't leave half
+the data behind, and the checks at the end confirm the numbers match the
+source. After the commit I run ANALYZE on the big tables so PostgreSQL has
+up-to-date statistics for planning queries. I left VACUUM out of the script
+on purpose: pgAdmin runs the whole script as one block, and VACUUM isn't
+allowed inside a transaction. PostgreSQL's autovacuum takes care of the new
+tables by itself within a minute or two anyway. For a production version I
+would make every step safe to re-run, and only move the "last loaded" time
+forward once the checks have passed.

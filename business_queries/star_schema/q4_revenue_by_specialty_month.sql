@@ -12,17 +12,26 @@
 SET search_path = healthcare_analysis_data_warehouse;
 
 -- Query 1: Revenue by specialty for each month
-SELECT 
-    d.year_month                     AS claim_month,
+
+WITH monthly_revenue AS (
+    SELECT
+        f.claim_date_key / 100      AS claim_yyyymm,
+        f.specialty_key,
+        SUM(f.total_allowed_amount) AS total_allowed,
+        SUM(f.claim_count)          AS claim_count
+    FROM fact_encounters f
+    WHERE f.claim_date_key <> -1          -- skip encounters never billed
+    GROUP BY f.claim_date_key / 100, f.specialty_key
+)
+SELECT
+    d.year_month     AS claim_month,
     s.specialty_name,
-    SUM(f.total_allowed_amount)      AS total_allowed,
-    SUM(f.claim_count)               AS claim_count
-FROM fact_encounters f
-JOIN dim_date d      ON f.claim_date_key = d.date_key
-JOIN dim_specialty s ON f.specialty_key  = s.specialty_key
-WHERE f.claim_date_key <> -1         -- skip visits that were never billed
-GROUP BY d.year_month, s.specialty_name
-ORDER BY claim_month, total_allowed DESC;
+    m.total_allowed,
+    m.claim_count
+FROM monthly_revenue m
+JOIN dim_date d      ON d.date_key      = m.claim_yyyymm * 100 + 1
+JOIN dim_specialty s ON s.specialty_key = m.specialty_key
+ORDER BY claim_month, m.total_allowed DESC;
 
 -- Query 2: Overall revenue by specialty (to find the highest earner)
 SELECT
