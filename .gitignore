@@ -1,12 +1,22 @@
+# Environment
 .env
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+
+# VS Code
 .vscode/
+
+# Notebooks
 .ipynb_checkpoints/
+
+# Spark
 spark-warehouse/
 metastore_db/
 derby.log
 *.crc
+
+# OS
 .DS_Store
 Thumbs.db
