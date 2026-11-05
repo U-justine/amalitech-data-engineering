@@ -1,27 +1,4 @@
 #!/usr/bin/env python3
-"""
-spark_streaming_to_postgres.py
-------------------------------
-Spark Structured Streaming job that:
-
-  1. Watches a folder for new e-commerce event CSV files.
-  2. Cleans and validates every row (trim, normalise case, cast types,
-     derive total_amount, reject bad rows with a reason).
-  3. Writes each micro-batch to PostgreSQL:
-        - valid rows   -> user_events      (idempotent, duplicates ignored)
-        - invalid rows -> rejected_events  (for auditing)
-        - batch stats  -> pipeline_batch_metrics
-  4. Logs Spark's own progress metrics to logs/streaming_progress.jsonl.
-
-Fault tolerance: Spark checkpoints which files have been processed, and the
-INSERT ... ON CONFLICT (event_id) DO NOTHING makes re-processing a batch after
-a crash harmless, giving effectively-exactly-once results in the database.
-
-Run:
-    python spark_streaming_to_postgres.py
-    # the JDBC driver is found automatically in jars/ or /usr/share/java/postgresql.jar;
-    # otherwise pass --jdbc-jar /path/to/postgresql.jar
-"""
 
 import argparse
 import json
@@ -35,36 +12,36 @@ from pyspark.sql import functions as F
 from pyspark.sql.streaming import StreamingQueryListener
 from pyspark.sql.types import StringType, StructField, StructType
 
-HERE = os.path.dirname(os.path.abspath(__file__))   # project folder
+HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = HERE
 
-# JDBC driver: project jars/ folder first, then the Ubuntu package location
+# Where to find the file that lets Spark talk to PostgreSQL.
 JDBC_CANDIDATES = [os.path.join(ROOT, "jars", "postgresql-42.7.2.jar"),
                    "/usr/share/java/postgresql.jar"]
 DEFAULT_JDBC_JAR = next((j for j in JDBC_CANDIDATES if os.path.exists(j)), JDBC_CANDIDATES[0])
 
-# Every column is read as a string first so that one bad value can't break
-# the file; casting happens explicitly during cleaning.
+# The 11 columns in every CSV file, all read as text first so one bad value cannot crash the program.
 RAW_SCHEMA = StructType([StructField(c, StringType(), True) for c in [
     "event_id", "user_id", "session_id", "event_type", "product_id", "product_name",
     "category", "price", "quantity", "device", "event_timestamp",
 ]])
 
+# The only three actions a shopper can do.
 VALID_EVENT_TYPES = ["view", "add_to_cart", "purchase"]
+# The pattern a correct event ID must follow.
 UUID_REGEX = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 
+# The columns saved into the user_events table.
 FINAL_COLUMNS = [
     "event_id", "user_id", "session_id", "event_type", "product_id", "product_name",
     "category", "price", "quantity", "total_amount", "device", "event_timestamp",
     "source_file", "batch_id", "processed_at",
 ]
 
+# Settings
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
+# Gets the database name, user and password from postgres_connection_details.txt.
 def load_pg_config(path: str) -> dict:
-    """Read KEY=VALUE pairs from postgres_connection_details.txt; env vars win."""
     cfg = {"PG_HOST": "localhost", "PG_PORT": "5432", "PG_DATABASE": "ecommerce_stream",
            "PG_USER": "spark_user", "PG_PASSWORD": "spark_pass"}
     if os.path.exists(path):
@@ -79,6 +56,7 @@ def load_pg_config(path: str) -> dict:
     return cfg
 
 
+# Reads the settings you can type after the command, like how often to check for files.
 def parse_args():
     p = argparse.ArgumentParser(description="Stream e-commerce CSV events into PostgreSQL.")
     p.add_argument("--input-dir", default=os.getenv("INPUT_DIR", os.path.join(ROOT, "data", "input")))
@@ -95,12 +73,11 @@ def parse_args():
                    help="Process everything currently in the folder, then stop")
     return p.parse_args()
 
+# Cleaning the data
 
-# ---------------------------------------------------------------------------
-# Transformations
-# ---------------------------------------------------------------------------
+# Cleans every row (removes spaces, fixes capital letters, turns text into numbers and dates)
+# and marks bad rows with the reason, for example "negative price".
 def clean_events(raw: DataFrame) -> DataFrame:
-    """Trim/normalise/cast every column and attach a reject_reason (null = valid)."""
     trimmed = raw.select(
         *[F.trim(F.col(c)).alias(c) for c in RAW_SCHEMA.fieldNames()],
         F.col("_metadata.file_name").alias("source_file"),
@@ -133,9 +110,10 @@ def clean_events(raw: DataFrame) -> DataFrame:
     return df.withColumn("reject_reason", reason)
 
 
+# Gets the good rows ready to save: removes copies and adds total_amount = price x quantity.
 def to_final(valid: DataFrame, batch_id: int) -> DataFrame:
     return (valid
-            .dropDuplicates(["event_id"])                         # dedup inside the batch
+            .dropDuplicates(["event_id"])
             .withColumn("price", F.col("price_num"))
             .withColumn("quantity", F.col("quantity_num"))
             .withColumn("total_amount", (F.col("price_num") * F.col("quantity_num")).cast("decimal(12,2)"))
@@ -146,10 +124,11 @@ def to_final(valid: DataFrame, batch_id: int) -> DataFrame:
             .select(*FINAL_COLUMNS))
 
 
-# ---------------------------------------------------------------------------
-# Sink: foreachBatch writer
-# ---------------------------------------------------------------------------
+# Saving to the database
+
+# Saves each group of new rows into the database: good rows and bad rows go to separate tables.
 class PostgresBatchWriter:
+    # Keeps the database details so Spark knows where to save.
     def __init__(self, cfg: dict):
         self.cfg = cfg
         self.jdbc_url = (f"jdbc:postgresql://{cfg['PG_HOST']}:{cfg['PG_PORT']}/{cfg['PG_DATABASE']}"
@@ -157,11 +136,14 @@ class PostgresBatchWriter:
         self.jdbc_props = {"user": cfg["PG_USER"], "password": cfg["PG_PASSWORD"],
                            "driver": "org.postgresql.Driver", "batchsize": "5000"}
 
+    # Connects to the database.
     def _pg(self):
         return psycopg2.connect(host=self.cfg["PG_HOST"], port=self.cfg["PG_PORT"],
                                 dbname=self.cfg["PG_DATABASE"], user=self.cfg["PG_USER"],
                                 password=self.cfg["PG_PASSWORD"])
 
+    # Handles one group of rows: separates good from bad, saves them without copies,
+    # and records how many rows there were and how long it took.
     def __call__(self, batch_df: DataFrame, batch_id: int) -> None:
         started = datetime.now(timezone.utc).replace(tzinfo=None)
         batch_df.persist()
@@ -182,10 +164,10 @@ class PostgresBatchWriter:
                                 F.lit(batch_id).cast("long").alias("batch_id")))
             valid_rows = valid.count()
             rejected_rows = input_rows - batch_df.filter(F.col("reject_reason").isNull()).count()
-            in_batch_dups = input_rows - rejected_rows - valid_rows   # same event_id twice in batch
+            in_batch_dups = input_rows - rejected_rows - valid_rows
 
             t0 = time.perf_counter()
-            with self._pg() as conn, conn.cursor() as cur:   # clear leftovers from a crashed run
+            with self._pg() as conn, conn.cursor() as cur:
                 cur.execute("TRUNCATE user_events_staging")
             if valid_rows:
                 valid.write.jdbc(self.jdbc_url, "user_events_staging", mode="append",
@@ -220,17 +202,19 @@ class PostgresBatchWriter:
         finally:
             batch_df.unpersist()
 
+# Progress notes
 
-# ---------------------------------------------------------------------------
-# Progress listener -> logs/streaming_progress.jsonl
-# ---------------------------------------------------------------------------
+# Writes down how fast Spark worked on each group of rows, in logs/streaming_progress.jsonl.
 class ProgressLogger(StreamingQueryListener):
+    # Remembers which file to write the notes in.
     def __init__(self, path: str):
         self.path = path
 
+    # Shows a message when the program starts.
     def onQueryStarted(self, event):
         print(f"[stream] query started id={event.id}", flush=True)
 
+    # Saves the speed of each group of rows that was processed.
     def onQueryProgress(self, event):
         p = event.progress
         if p.numInputRows == 0:
@@ -242,14 +226,18 @@ class ProgressLogger(StreamingQueryListener):
         with open(self.path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
 
+    # Does nothing when there are no new files.
     def onQueryIdle(self, event):
         pass
 
+    # Shows a message when the program stops.
     def onQueryTerminated(self, event):
         print(f"[stream] query terminated id={event.id} exception={event.exception}", flush=True)
 
 
-# ---------------------------------------------------------------------------
+
+# Main program: starts Spark, watches the data/input folder for new CSV files,
+# cleans them and saves them to the database until you press Ctrl+C.
 def main():
     args = parse_args()
     cfg = load_pg_config(args.conn_file)
@@ -259,8 +247,6 @@ def main():
     builder = (SparkSession.builder
                .appName("EcommerceEventsToPostgres")
                .config("spark.sql.session.timeZone", "UTC")
-               # JDBC writes TIMESTAMP values using the JVM default zone; pin it to UTC
-               # so 08:00 UTC in the CSV is stored as 08:00, whatever the host's timezone.
                .config("spark.driver.extraJavaOptions", "-Duser.timezone=UTC")
                .config("spark.executor.extraJavaOptions", "-Duser.timezone=UTC")
                .config("spark.sql.shuffle.partitions", "4")
@@ -277,7 +263,7 @@ def main():
     raw = (spark.readStream
            .format("csv")
            .option("header", "true")
-           .option("mode", "PERMISSIVE")           # malformed lines become nulls, not crashes
+           .option("mode", "PERMISSIVE")
            .option("maxFilesPerTrigger", args.max_files_per_trigger)
            .schema(RAW_SCHEMA)
            .load(args.input_dir))
