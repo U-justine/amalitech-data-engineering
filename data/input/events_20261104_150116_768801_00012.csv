@@ -1,0 +1,101 @@
+event_id,user_id,session_id,event_type,product_id,product_name,category,price,quantity,device,event_timestamp
+5b16142c-e29c-43e0-b5d1-58ee403a7ac7,U01739,c56ec5b9671e,view,P0014,Data Engineering Handbook,Books,39.99,1,tablet,2026-11-04 15:01:16.765
+39fd56de-88d2-4f44-9c7e-417ec960381a,U02388,099097bc6236,add_to_cart,P0010,Coffee Maker,Home & Kitchen,79.00,1,desktop,2026-11-04 15:01:16.765
+f19c6be8-72c2-4a9f-80fe-5cbe1c728fa8,U01450,2371f9793b1b,purchase,P0001,Wireless Earbuds,Electronics,59.99,3,desktop,2026-11-04 15:01:16.765
+17154033-4867-4e86-a031-d7117572c27d,U01880,bea53b239698,add_to_cart,P0001,Wireless Earbuds,Electronics,59.99,3,tablet,2026-11-04 15:01:16.765
+2cfc71de-86e5-40c7-a903-07470905f2c2,U03842,958c79d7f362,view,P0014,Data Engineering Handbook,Books,39.99,1,mobile,2026-11-04 15:01:16.765
+0696e8f9-0d11-470d-bba7-b58c5d8e3fbc,U04981,0aeda281e7e8,view,P0015,Mystery Novel,Books,12.50,1,mobile,2026-11-04 15:01:16.765
+c853104f-205f-4b37-87c9-914d4247d857,U02138,4501a906de16,view,P0003,USB-C Charger,Electronics,19.99,1,mobile,2026-11-04 15:01:16.765
+727007d1-266d-4d5d-a6e3-7e7e3281eece,U03315,75923079baf2,view,P0013,Table Lamp,Home & Kitchen,22.00,1,mobile,2026-11-04 15:01:16.766
+dbb0e74e-9e01-40de-ac53-a180afacac68,U00989,a795b679a091,view,P0017,Face Moisturiser,Beauty,16.99,1,mobile,2026-11-04 15:01:16.766
+553181d6-2781-4b18-ae55-d94fc662c5dc,U01695,d055fda44e61,view,P0008,Cotton T-Shirt,Fashion,14.99,1,mobile,2026-11-04 15:01:16.766
+39e2752e-58b8-40ce-bbde-8c63822899ea,U04550,0bc7d166bc68,view,P0007,Denim Jacket,Fashion,74.00,1,mobile,2026-11-04 15:01:16.766
+7359f5f5-973e-4921-8779-a8a374a0ccbd,U04400,37e772a8e4f4,purchase,P0010,Coffee Maker,Home & Kitchen,79.00,2,desktop,2026-11-04 15:01:16.766
+53e9b406-b33f-45b9-844e-ad93fc02e3d2,U04816,bab590e594fe,view,P0007,Denim Jacket,Fashion,74.00,1,mobile,2026-11-04 15:01:16.766
+fa227ee7-8053-4976-8fed-21ffbde015a3,U04238,261816b5513c,view,P0019,Perfume,Beauty,65.00,1,mobile,2026-11-04 15:01:16.766
+233c5762-fd22-4a31-9976-4b90d69bef47,U01578,de4d251e1ba8,view,P0016,Cookbook,Books,18.75,1,mobile,2026-11-04 15:01:16.766
+2961bd25-a61a-49a0-9697-ad5c8cda8933,U02147,6d3dd92d5b1c,add_to_cart,P0009,Leather Belt,Fashion,24.50,2,tablet,2026-11-04 15:01:16.766
+78d4fbc3-4d7a-4397-993d-27049c8e9134,U01206,28cb0c5d5c93,view,P0016,Cookbook,Books,18.75,1,desktop,2026-11-04 15:01:16.766
+22d49eba-dfcd-4767-88ba-20df8567054c,U02920,3189fe93713e,view,P0001,Wireless Earbuds,Electronics,59.99,1,desktop,2026-11-04 15:01:16.766
+3fd902c8-59d2-41a9-b0fb-104ac3a27f83,U04034,27cec54df108,view,P0012,Blender,Home & Kitchen,49.99,1,mobile,2026-11-04 15:01:16.766
+4c74fd05-4bc8-4025-9039-4c2249f49bbf,U01303,86b108ad2fc6,purchase,P0005,Laptop Stand,Electronics,29.95,1,mobile,2026-11-04 15:01:16.766
+6c48f819-7aac-4cae-a4d1-a2c44ea8fa7c,U01609,655069606f2b,view,P0013,Table Lamp,Home & Kitchen,22.00,1,tablet,2026-11-04 15:01:16.766
+790eb207-7beb-4c02-83fa-0bc18d09ca7d,U02636,d62e52ca67b6,purchase,P0006,Running Shoes,Fashion,89.90,3,tablet,2026-11-04 15:01:16.766
+9f5097aa-e43f-4d98-b3ba-6569dc9c3c7c,U02018,cbfa135fc38f,view,P0019,Perfume,Beauty,65.00,1,desktop,2026-11-04 15:01:16.766
+0bbf8825-9aa4-4368-805e-54950c4f0435,U00125,1fa02ed6c560,view,P0004,Bluetooth Speaker,Electronics,39.50,1,tablet,2026-11-04 15:01:16.766
+91536905-13fa-4ba8-86d2-80eda4a18453,U00886,b77fe92dfb81,view,P0010,Coffee Maker,Home & Kitchen,79.00,1,mobile,2026-11-04 15:01:16.766
+a2f51d99-0293-4552-9b9e-83eefe89bca7,U03205,4651e0a03f3a,view,P0011,Non-stick Pan,Home & Kitchen,34.99,1,mobile,2026-11-04 15:01:16.766
+7dc3c021-9ab4-499e-86a4-bf0dbc47ae5c,U02745,7e4e9fd9c196,view,P0010,Coffee Maker,Home & Kitchen,79.00,1,desktop,2026-11-04 15:01:16.766
+5a89e689-36b2-4fa5-b4a1-301c3399b0df,U04438,26b5fd1ccb6b,view,P0013,Table Lamp,Home & Kitchen,22.00,1,mobile,2026-11-04 15:01:16.766
+9e5aded6-e294-4939-995a-26d254ce4c95,U01536,d568b26a3b90,add_to_cart,P0019,Perfume,Beauty,65.00,3,mobile,2026-11-04 15:01:16.766
+3c602dc4-5fdc-4218-8ed8-86a9661fe3d6,U01097,682f28530635,purchase,P0017,Face Moisturiser,Beauty,16.99,1,mobile,2026-11-04 15:01:16.766
+d2b6e3da-2b4a-4832-8f09-6e0a08389a7c,U01347,ebbc680283c5,view,P0006,Running Shoes,Fashion,89.90,1,mobile,2026-11-04 15:01:16.766
+557ff433-6372-48a2-aa8b-39ff0e805535,U01311,475d6441ab92,add_to_cart,P0011,Non-stick Pan,Home & Kitchen,34.99,3,mobile,2026-11-04 15:01:16.766
+0cc4e7d7-f07b-453b-9aa1-d32c3f37a063,U00858,a51aa01f69fb,view,P0008,Cotton T-Shirt,Fashion,14.99,1,mobile,2026-11-04 15:01:16.766
+5f8a3da6-db86-4fc9-bd4f-59a75c8bd4ef,U04185,4ca2549e2ec3,view,P0007,Denim Jacket,Fashion,74.00,1,mobile,2026-11-04 15:01:16.766
+d5c4cb37-93e7-4082-ba48-eee58b95dfa1,U00165,b6c39205fe01,view,P0005,Laptop Stand,Electronics,29.95,1,mobile,2026-11-04 15:01:16.766
+bbc3ea19-8017-459a-bfb4-2895b079df0a,U04035,5dd737bb5a11,view,P0017,Face Moisturiser,Beauty,16.99,1,mobile,2026-11-04 15:01:16.766
+7d6c5e1c-76d0-4335-9a8d-110f16eb1ffa,U02633,d196c46304c0,view,P0010,Coffee Maker,Home & Kitchen,79.00,1,mobile,2026-11-04 15:01:16.766
+65f00763-d7cb-4509-8a90-ba4d0ea524de,U04421,f0f2fdb7efc1,purchase,P0014,Data Engineering Handbook,Books,39.99,3,mobile,2026-11-04 15:01:16.766
+e97a2d44-64e1-4586-ba87-8ce0fe87ca07,U04786,ef2b6a8ad2e2,view,P0007,Denim Jacket,Fashion,74.00,1,desktop,2026-11-04 15:01:16.766
+b530e89a-112f-49b4-ad19-39abe991e4c0,U02108,7098a0dc84f4,view,P0019,Perfume,Beauty,65.00,1,mobile,2026-11-04 15:01:16.766
+36718cf2-44f4-4d67-9330-9f3197ac4fe3,U01180,21b2d9d566d6,add_to_cart,P0003,USB-C Charger,Electronics,19.99,1,mobile,2026-11-04 15:01:16.766
+dd5f6acb-6355-4cda-bd67-389140cac17f,U02712,3bb391dc7aa4,view,P0012,Blender,Home & Kitchen,49.99,1,desktop,2026-11-04 15:01:16.766
+6752e011-6d2f-4207-89a2-04375a7d50d2,U03562,515e2f8ca918,view,P0016,Cookbook,Books,18.75,1,desktop,2026-11-04 15:01:16.766
+c12a787a-09bc-4833-8723-b01dc2a034ca,U00011,9e6a3e1291c3,view,P0014,Data Engineering Handbook,Books,39.99,1,mobile,2026-11-04 15:01:16.766
+172216bd-c964-4e29-8ce4-10f8082c1132,U00892,5ab43f9574b8,view,P0002,Smartphone,Electronics,499.00,1,desktop,2026-11-04 15:01:16.767
+6518db3f-0776-48a8-9ba1-70e8f70e38c2,U03407,f19ae4e3b90c,view,P0018,Shampoo,Beauty,8.49,1,mobile,2026-11-04 15:01:16.767
+fe4b234e-cb98-4a03-9f6e-52b2092f0568,U04532,59e6fb2ec5f3,add_to_cart,P0016,Cookbook,Books,18.75,3,desktop,2026-11-04 15:01:16.767
+309f4ff4-8381-4226-afe2-dd6cd7794de5,U00104,c8087b1629c8,purchase,P0003,USB-C Charger,Electronics,19.99,1,mobile,2026-11-04 15:01:16.767
+17ef7bea-85c1-4ce4-9444-5fe47cee1bcb,U02634,3d72e9c3a4cc,view,P0008,Cotton T-Shirt,Fashion,14.99,1,tablet,2026-11-04 15:01:16.767
+f96130f5-6b27-465d-9976-95b7b11b25c8,U02404,8cbcdc86c44b,add_to_cart,P0001,Wireless Earbuds,Electronics,59.99,1,desktop,2026-11-04 15:01:16.767
+cd4c6a34-fd1e-4e40-ac41-8c92e74daf51,U03930,2334eb7d8e2b,view,P0010,Coffee Maker,Home & Kitchen,79.00,1,desktop,2026-11-04 15:01:16.767
+22086dbf-ed23-443d-ac0a-7b35165a1144,U03345,16dbf52ac6ec,view,P0015,Mystery Novel,Books,12.50,1,desktop,2026-11-04 15:01:16.767
+326c860e-0256-4804-8885-18a138bb6a15,U02461,a8c03cd58540,view,P0010,Coffee Maker,Home & Kitchen,79.00,1,mobile,2026-11-04 15:01:16.767
+fca6f18e-3ffd-401f-b0c0-4b15d4d77956,U02791,811e06d35e99,view,P0017,Face Moisturiser,Beauty,16.99,1,desktop,2026-11-04 15:01:16.767
+78e002d1-eb47-4dd9-abcf-6e1305a2585f,U03331,adf5a70ddaee,view,P0006,Running Shoes,Fashion,89.90,1,desktop,2026-11-04 15:01:16.767
+db35509b-95f0-497f-86fd-a0cc86a0c0a9,U02270,9d4bf0681487,view,P0008,Cotton T-Shirt,Fashion,14.99,1,mobile,2026-11-04 15:01:16.767
+f3a5cae7-2845-463a-ad02-654bb9e1f40b,U04357,775ddcbd2360,view,P0018,Shampoo,Beauty,8.49,1,desktop,2026-11-04 15:01:16.767
+89131b0b-e27a-4311-b35a-39bb2255b7c3,U03546,21be8ae6fc90,view,P0005,Laptop Stand,Electronics,29.95,1,desktop,2026-11-04 15:01:16.767
+8d14e3f3-32aa-4d31-83d1-193ec8d9273f,U04706,d3b49597e054,view,P0009,Leather Belt,Fashion,24.50,1,mobile,2026-11-04 15:01:16.767
+9de24a04-0509-41ad-9576-54f9eb87d526,U00630,4b1c68405707,view,P0001,Wireless Earbuds,Electronics,59.99,1,desktop,2026-11-04 15:01:16.767
+b57bba09-383f-4ba1-b5d3-d98725acfe9a,U04356,7bdea136837a,view,P0007,Denim Jacket,Fashion,74.00,1,desktop,2026-11-04 15:01:16.767
+e396e735-e3b0-440d-92f0-7c92724110d6,U04949,a26490eb3694,view,P0010,Coffee Maker,Home & Kitchen,79.00,1,desktop,2026-11-04 15:01:16.767
+1912ff9c-7a8c-4931-ac70-35577bca07e1,U04379,9c7853bc7623,view,P0019,Perfume,Beauty,65.00,1,mobile,2026-11-04 15:01:16.767
+4b37f3ff-9d22-4e8a-bcf7-45a3224c5399,U03726,e8060299cdbe,view,P0011,Non-stick Pan,Home & Kitchen,34.99,1,desktop,2026-11-04 15:01:16.767
+34e23151-b3c9-4e5b-9ea4-9fedc42dab89,U04170,f127e7b7d041,purchase,P0016,Cookbook,Books,18.75,2,desktop,2026-11-04 15:01:16.767
+9bebd659-29cd-43b8-962b-3f9dc4577603,U01022,4b8299252e2e,view,P0003,USB-C Charger,Electronics,19.99,1,desktop,2026-11-04 15:01:16.767
+92a13941-c85b-49d5-a2a9-55ebb6e0a6dc,U04899,7f29f55553da,view,P0008,Cotton T-Shirt,Fashion,14.99,1,mobile,2026-11-04 15:01:16.767
+a5f20634-19b5-4134-8656-f397305ced34,U04036,54173fffc6dd,view,P0017,Face Moisturiser,Beauty,16.99,1,mobile,2026-11-04 15:01:16.767
+f025fe87-f34b-4630-b0ad-66ee1d1896a4,U01966,0e8d17492055,view,P0018,Shampoo,Beauty,8.49,1,mobile,2026-11-04 15:01:16.767
+1f3bad73-817f-46b3-a947-34b181773d2c,U03234,df91eeaf6c82,view,P0016,Cookbook,Books,18.75,1,mobile,2026-11-04 15:01:16.767
+956baac4-cad8-463c-9d87-12b97e293ea1,U04905,34b0c3bd155d,view,P0018,Shampoo,Beauty,8.49,1,mobile,2026-11-04 15:01:16.767
+ef62033f-4078-4d42-9326-c48050cac634,U02364,26e12bfe2774,view,P0015,Mystery Novel,Books,12.50,1,mobile,2026-11-04 15:01:16.767
+3fb51917-6866-4b93-b2b5-5171c9cb9c6b,U04379,c198d803c6ee,view,P0005,Laptop Stand,Electronics,29.95,1,mobile,2026-11-04 15:01:16.768
+6b0ef2bd-1be1-4e25-839a-2676d42632ac,U03037,ae2f88a80676,view,P0019,Perfume,Beauty,65.00,1,mobile,2026-11-04 15:01:16.768
+aa0150f7-a731-4157-83d6-30873b260340,U00398,09a27d2f5047,add_to_cart,P0012,Blender,Home & Kitchen,49.99,3,desktop,2026-11-04 15:01:16.768
+992fcc92-8530-49f3-8489-adae31aa50f5,U02553,23f91eb012b0,view,P0009,Leather Belt,Fashion,24.50,1,desktop,2026-11-04 15:01:16.768
+66dac477-5a73-46f6-b965-40030453bcf6,U00406,4005bb1102db,add_to_cart,P0012,Blender,Home & Kitchen,49.99,2,mobile,2026-11-04 15:01:16.768
+4378f14a-c418-487b-94de-72c0c07b2363,U00966,716b4cdba9f0,view,P0009,Leather Belt,Fashion,24.50,1,tablet,2026-11-04 15:01:16.768
+4f020fdd-1c1e-4b19-8d67-f66b0499215f,U03126,69dc66e820f0,view,P0001,Wireless Earbuds,Electronics,59.99,1,mobile,2026-11-04 15:01:16.768
+8c0e9220-5cfd-4fee-97fc-66b81147adc3,U01751,84e47b6f3ed4,view,P0006,Running Shoes,Fashion,89.90,1,mobile,2026-11-04 15:01:16.768
+decaaf8c-db17-469a-8f24-6768186f8faa,U04855,74a811b971fe,add_to_cart,P0013,Table Lamp,Home & Kitchen,22.00,1,mobile,2026-11-04 15:01:16.768
+015c0f0d-fb5a-4d5b-9156-97c26ad37287,U00065,ac8792086854,purchase,P0008,Cotton T-Shirt,Fashion,14.99,1,mobile,2026-11-04 15:01:16.768
+3217f7fa-b4f3-4c96-9bcf-c64560d8ec00,U01305,8f3ed2cac3fb,view,P0011,Non-stick Pan,Home & Kitchen,34.99,1,desktop,2026-11-04 15:01:16.768
+df7b67f1-fdb4-4f68-9a14-0235747ca57e,U01010,05dca9ef92db,view,P0013,Table Lamp,Home & Kitchen,22.00,1,tablet,2026-11-04 15:01:16.768
+eb38bd88-9c20-4458-b210-1a478603bcda,U02572,bc897b1c07d6,view,P0017,Face Moisturiser,Beauty,16.99,1,desktop,2026-11-04 15:01:16.768
+b1765a7d-a0b9-479d-b1ac-fd66d0026c49,U03627,644d2fa9dfd8,add_to_cart,P0019,Perfume,Beauty,65.00,3,mobile,2026-11-04 15:01:16.768
+57a92cad-c40c-48e8-8c20-7d816920fa83,U01122,e89628b20af5,view,P0003,USB-C Charger,Electronics,19.99,1,mobile,2026-11-04 15:01:16.768
+52fcf575-74c4-4662-90a4-637442c9c497,U00682,bef658e24230,view,P0018,Shampoo,Beauty,8.49,1,desktop,2026-11-04 15:01:16.768
+a01f8ba8-24fe-4c2e-9f31-347ac950d5fd,U04479,7771bb83afb9,view,P0019,Perfume,Beauty,65.00,1,mobile,2026-11-04 15:01:16.768
+6944a90d-6ee0-4c45-a7b4-5626abfe7c9e,U01645,13fc4bd0ea93,view,P0009,Leather Belt,Fashion,24.50,1,mobile,2026-11-04 15:01:16.768
+1ee41161-d32a-4335-9d3c-1d69dc5a7218,U00330,d7c1c8301710,view,P0010,Coffee Maker,Home & Kitchen,79.00,1,mobile,2026-11-04 15:01:16.768
+3d8e0092-9293-4d09-a85c-33a0ca108c89,U02085,7225c43a127b,view,P0019,Perfume,Beauty,65.00,1,mobile,2026-11-04 15:01:16.768
+58818be5-6845-4f98-8324-1d6d6ff34e18,U00396,88a7aa97cc08,view,P0003,USB-C Charger,Electronics,19.99,1,mobile,2026-11-04 15:01:16.768
+c7cb215f-8a49-4cae-970f-04dc0bd24559,U02715,22faa1eab3e1,view,P0012,Blender,Home & Kitchen,49.99,1,mobile,2026-11-04 15:01:16.768
+434d96a4-6935-4146-a531-35894d19579e,U02297,2d2d728849f8,view,P0003,USB-C Charger,Electronics,19.99,1,mobile,2026-11-04 15:01:16.768
+93637760-d7e7-4788-9343-63a8f38bbf62,U03846,18c32c38ba97,view,P0001,Wireless Earbuds,Electronics,59.99,1,mobile,2026-11-04 15:01:16.768
+a004dd44-06fa-41fd-90dd-3b2fce80aa63,U03946,58fcef76dab1,purchase,P0018,Shampoo,Beauty,8.49,1,mobile,2026-11-04 15:01:16.768
+af34b939-aa60-4ab1-897d-78861afb084c,U04444,44a69324b6ea,view,P0003,USB-C Charger,Electronics,19.99,1,mobile,2026-11-04 15:01:16.768
+150ab1cb-91db-4e95-8cf5-f88b01564518,U04821,0c954de3d220,view,P0013,Table Lamp,Home & Kitchen,22.00,1,mobile,2026-11-04 15:01:16.768
+f4a99ff7-78b5-4ad0-9bf9-3b5675b28917,U01825,0c5077ce3610,view,P0016,Cookbook,Books,18.75,1,desktop,2026-11-04 15:01:16.768

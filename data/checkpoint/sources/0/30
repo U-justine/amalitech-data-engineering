@@ -1,0 +1,11 @@
+v1
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_085959_063968_00001.csv","timestamp":1793869199067,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090001_080329_00002.csv","timestamp":1793869201095,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090003_117389_00003.csv","timestamp":1793869203119,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090005_125485_00004.csv","timestamp":1793869205127,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090007_141281_00005.csv","timestamp":1793869207149,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090009_165104_00006.csv","timestamp":1793869209180,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090011_208652_00007.csv","timestamp":1793869211223,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090013_242757_00008.csv","timestamp":1793869213246,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090015_257853_00009.csv","timestamp":1793869215262,"batchId":30}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261105_090017_288182_00010.csv","timestamp":1793869217293,"batchId":30}

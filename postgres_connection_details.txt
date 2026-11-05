@@ -1,0 +1,22 @@
+# PostgreSQL connection details for the real-time e-commerce pipeline.
+# spark_streaming_to_postgres.py reads this file (KEY=VALUE lines).
+# Any value can be overridden with an environment variable of the same name,
+# e.g.  export PG_HOST=db.example.com
+#
+# NOTE: these are local-development credentials. Do not commit real
+# passwords to source control; use environment variables or a secrets manager.
+
+PG_HOST=localhost
+PG_PORT=5432
+PG_DATABASE=ecommerce_stream
+PG_USER=spark_user
+PG_PASSWORD=spark_pass
+
+# Derived JDBC URL (stringtype=unspecified lets Spark write strings into UUID columns)
+# jdbc:postgresql://localhost:5432/ecommerce_stream?stringtype=unspecified
+
+# Tables
+#   user_events             - cleaned events (main table)
+#   rejected_events         - rows that failed validation, with the reason
+#   user_events_staging     - per-batch staging table (internal)
+#   pipeline_batch_metrics  - per-batch performance log

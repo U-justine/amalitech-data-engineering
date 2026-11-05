@@ -1,0 +1,4 @@
+v1
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261104_174515_661542_00013.csv","timestamp":1793814315669,"batchId":27}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261104_174517_683364_00014.csv","timestamp":1793814317684,"batchId":27}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261104_174519_694800_00015.csv","timestamp":1793814319708,"batchId":27}
