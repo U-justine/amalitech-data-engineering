@@ -67,11 +67,12 @@ DEVICES = ["mobile", "desktop", "tablet"]
 DEVICE_WEIGHTS = [0.60, 0.32, 0.08]
 
 
+# Returns the current time in UTC as text, e.g. 2026-11-03 10:15:42.123.
 def now_iso() -> str:
-    """UTC timestamp, millisecond precision, e.g. 2026-11-03 10:15:42.123"""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
 
+# Creates one fake shopper action (view, add to cart or purchase) for a random user and product.
 def make_event(user_pool: int) -> dict:
     product = random.choice(PRODUCTS)
     event_type = random.choices(EVENT_TYPES, EVENT_WEIGHTS)[0]
@@ -91,8 +92,9 @@ def make_event(user_pool: int) -> dict:
     }
 
 
+# Breaks an event on purpose (negative price, bad date, missing user...) to test the cleaning.
+# One case only changes letter case/spaces, so Spark should fix and keep that row.
 def make_dirty(event: dict, previous: list) -> dict:
-    """Corrupt an event in one of several realistic ways."""
     kind = random.choice(["neg_price", "bad_type", "no_user", "bad_ts", "messy_case", "duplicate",
                           "bad_qty"])
     e = dict(event)
@@ -113,6 +115,8 @@ def make_dirty(event: dict, previous: list) -> dict:
     return e
 
 
+# Saves a list of events as a CSV file: written to .staging first, then moved into data/input
+# in one step so Spark never reads a half-written file.
 def write_batch(rows: list, out_dir: str, staging_dir: str, file_no: int) -> str:
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
     fname = f"events_{ts}_{file_no:05d}.csv"
@@ -126,6 +130,7 @@ def write_batch(rows: list, out_dir: str, staging_dir: str, file_no: int) -> str
     return final_path
 
 
+# Starting point: reads the options, then writes a new CSV file every few seconds until done.
 def main() -> None:
     p = argparse.ArgumentParser(description="Generate fake e-commerce event CSV files.")
     p.add_argument("--output-dir", default=os.getenv("INPUT_DIR", os.path.join(ROOT, "data", "input")),
