@@ -1,6 +1,5 @@
 # TMDB Movie Data Analysis with PySpark – Final Report
 
-
 ## 1. Objective
 
 Build a movie data pipeline with Apache Spark that fetches data from the TMDb API, cleans and transforms it, calculates KPIs, analyzes franchises and directors, and presents the findings with Matplotlib.
@@ -15,25 +14,25 @@ Build a movie data pipeline with Apache Spark that fetches data from the TMDb AP
 | pytest | Tests |
 | Git / GitHub | Version control |
 
-Spark runs in local mode (`local[2]`, bound to `127.0.0.1`) through one shared `SparkSession` (`src/spark_session.py` → `get_spark()`). Two cores are enough for this small dataset and avoid Python worker timeouts on Windows.
+Spark runs in local mode (`local[2]`, bound to `127.0.0.1`) through one shared `SparkSession` ([`src/spark_session.py`](../src/spark_session.py) → `get_spark()`). Two cores are enough for this small dataset and avoid Python worker timeouts on Windows.
 
-The whole pipeline is run by `main.py`, or step by step in `notebooks/tmdb_spark_analysis.ipynb`.
+The whole pipeline is run by [`main.py`](../main.py), or step by step in [`notebooks/tmdb_spark_analysis.ipynb`](../notebooks/tmdb_spark_analysis.ipynb).
 
 ## 3. Methodology
 
 ### 3.1 Data extraction
 
-*Code: `src/fetch_movies.py` → `fetch_movie()`, `download_movies()`, `fetch_movies()`*
+*Code: [`src/fetch_movies.py`](../src/fetch_movies.py) → `fetch_movie()`, `download_movies()`, `fetch_movies()`*
 
 - 19 movie IDs were requested from `/movie/{id}` with `append_to_response=credits`, so cast and crew come in the same call.
 - Each request has a 10-second timeout and up to 3 attempts, waiting longer between attempts (2 s, then 4 s).
-- ID `0` returned **404 Not Found**. It was logged, skipped without retrying and saved to `data/raw/fetch_failures.json`, leaving **18 movies**.
-- The answers were saved as **JSON Lines** (`data/raw/tmdb_movies_raw.jsonl`, one movie per line) and loaded with `spark.read.json`, which reads JSON Lines by default and keeps the nested data as Spark structs and arrays.
+- ID `0` returned **404 Not Found**. It was logged, skipped without retrying and saved to [`data/raw/fetch_failures.json`](../data/raw/fetch_failures.json), leaving **18 movies**.
+- The answers were saved as **JSON Lines** ([`data/raw/tmdb_movies_raw.jsonl`](../data/raw/tmdb_movies_raw.jsonl), one movie per line) and loaded with `spark.read.json`, which reads JSON Lines by default and keeps the nested data as Spark structs and arrays.
 - The raw file acts as a cache: later runs load it instead of calling the API again.
 
 ### 3.2 Cleaning and transformation
 
-*Code: `src/clean_movies.py` → `clean_dataframe()`, with helpers `join_names()`, `get_director()` and `inspect_columns()`*
+*Code: [`src/clean_movies.py`](../src/clean_movies.py) → `clean_dataframe()`, with helpers `join_names()`, `get_director()` and `inspect_columns()`*
 
 | Step | Spark implementation |
 |------|----------------------|
@@ -49,12 +48,12 @@ The whole pipeline is run by `main.py`, or step by step in `notebooks/tmdb_spark
 | 10. Column order | `select(FINAL_COLS)` |
 | 11. Reset index | Spark has no index; rows are sorted by `id` for a fixed order |
 
-The cleaned data has **18 rows and 22 columns**, with no duplicate IDs and no missing titles. It is saved and checked by `src/validate_clean_data.py` → `save_clean_data()`:
+The cleaned data has **18 rows and 22 columns**, with no duplicate IDs and no missing titles. It is saved and checked by [`src/validate_clean_data.py`](../src/validate_clean_data.py) → `save_clean_data()`:
 
-- **Parquet** (`data/processed/tmdb_movies_clean.parquet`) keeps the data types and is read back to check the row count, column order, duplicate IDs and missing titles.
-- **CSV** (`data/processed/tmdb_movies_clean.csv`) is a copy that opens in Excel or on GitHub.
+- **Parquet** ([`data/processed/tmdb_movies_clean.parquet`](../data/processed/tmdb_movies_clean.parquet)) keeps the data types and is read back to check the row count, column order, duplicate IDs and missing titles.
+- **CSV** ([`data/processed/tmdb_movies_clean.csv`](../data/processed/tmdb_movies_clean.csv)) is a copy that opens in Excel or on GitHub.
 
-For the analysis, `add_metrics()` (`src/clean_movies.py`) adds four columns: `profit_musd`, `roi`, `is_franchise` and `release_year`. This DataFrame is cached in `main.py` because every later step reuses it.
+For the analysis, `add_metrics()` ([`src/clean_movies.py`](../src/clean_movies.py)) adds four columns: `profit_musd`, `roi`, `is_franchise` and `release_year`. This DataFrame is cached in [`main.py`](../main.py) because every later step reuses it.
 
 **Data flow.** The analysis runs on the cleaned DataFrame in memory, not on the saved files. The API is called only once (the raw JSONL file is reused), and cleaning 18 movies takes seconds. Cleaning is therefore redone on every run, which keeps the results in line with the current cleaning code. With much larger data, the analysis would load the Parquet file instead.
 
@@ -65,28 +64,36 @@ TMDb API ──► raw JSONL ──► clean (Spark) ──► cleaned DataFrame
 
 ### 3.3 KPIs
 
-*Code: `src/analyze_kpis.py` → `roi_udf()`, `rank_movies()`, `all_kpis()`, `show_all_kpis()`*
+*Code: [`src/analyze_kpis.py`](../src/analyze_kpis.py) → `roi_udf()`, `rank_movies()`, `all_kpis()`, `show_all_kpis()`*
 
 `rank_movies()` filters by minimum votes or budget when needed, then ranks with `row_number()` over a window ordered by the chosen column (title breaks ties). For the KPI rankings, ROI is calculated with a Spark UDF, `roi_udf`. All 10 KPIs are built in `all_kpis()` from this one function.
 
 ### 3.4 Searches, franchises and directors
 
-*Code: `src/search_bruce_willis.py` → `find_bruce_willis()`, `src/search_uma_thurman.py` → `find_uma_thurman()`, `src/compare_franchises.py` → `compare_franchise_vs_standalone()`, `src/analyze_franchises.py` → `analyze_franchise_performance()`, `src/analyze_directors.py` → `analyze_director_performance()`*
+*Code:*
+
+- *[`src/search_bruce_willis.py`](../src/search_bruce_willis.py) → `find_bruce_willis()`*
+- *[`src/search_uma_thurman.py`](../src/search_uma_thurman.py) → `find_uma_thurman()`*
+- *[`src/compare_franchises.py`](../src/compare_franchises.py) → `compare_franchise_vs_standalone()`*
+- *[`src/analyze_franchises.py`](../src/analyze_franchises.py) → `analyze_franchise_performance()`*
+- *[`src/analyze_directors.py`](../src/analyze_directors.py) → `analyze_director_performance()`*
+
+Method:
 
 - Genres, cast and directors are split into arrays and matched with `array_contains`, so only whole names match.
 - Franchise vs standalone, top franchises and top directors use `groupBy().agg()`. Median ROI uses `F.median`.
 - A movie with two directors counts for each director (`explode` on the director list).
-- Results are saved as CSV in `data/processed/` through `src/save_results.py` → `save_csv()`.
+- Results are saved as CSV in [`data/processed/`](../data/processed/) through [`src/save_results.py`](../src/save_results.py) → `save_csv()`.
 
 ### 3.5 Visualization
 
-*Code: `src/visualize.py`*
+*Code: [`src/visualize.py`](../src/visualize.py)*
 
-Spark does the grouping. Only the small results are converted with `toPandas()` and plotted with Matplotlib. Each chart is saved to `figures/` by `save_plot()`, and is also shown when running in the notebook.
+Spark does the grouping. Only the small results are converted with `toPandas()` and plotted with Matplotlib. Each chart is saved to [`figures/`](../figures/) by `save_plot()`, and is also shown when running in the notebook.
 
 ### 3.6 Testing
 
-*Code: `tests/test_pipeline.py`, `tests/conftest.py`*
+*Code: [`tests/test_pipeline.py`](../tests/test_pipeline.py), [`tests/conftest.py`](../tests/conftest.py)*
 
 8 pytest tests use fake API answers, so they need no API key or internet. They cover 404 handling, retries and timeouts, the cleaning rules, the ROI UDF, all 10 KPIs and whole-name search matching. All 8 pass.
 
@@ -111,12 +118,16 @@ Spark does the grouping. Only the small results are converted with `toPandas()` 
 
 Both searches returned **0 movies**. No movie in the dataset stars Bruce Willis or Uma Thurman, or is directed by Quentin Tarantino.
 
+Saved results: [`data/processed/bruce_willis_search.csv`](../data/processed/bruce_willis_search.csv), [`data/processed/uma_thurman_search.csv`](../data/processed/uma_thurman_search.csv)
+
 ### 4.3 Franchise vs standalone
 
 | Type | Movies | Mean revenue | Median ROI | Mean budget | Mean popularity | Mean rating |
 |------|--------|--------------|------------|-------------|-----------------|-------------|
 | Franchise | 16 | 1,691.47 | 7.84 | 218.00 | 37.73 | 7.39 |
 | Standalone | 2 | 1,765.14 | 9.62 | 180.00 | 40.67 | 7.44 |
+
+Saved result: [`data/processed/franchise_vs_standalone.csv`](../data/processed/franchise_vs_standalone.csv)
 
 ### 4.4 Top franchises (by total revenue)
 
@@ -127,6 +138,8 @@ Both searches returned **0 movies**. No movie in the dataset stars Bruce Willis 
 | Jurassic Park Collection | 2 | 320.0 | 2,982.01 | 1,491.00 | 6.61 |
 | Avatar Collection | 1 | 237.0 | 2,923.71 | 2,923.71 | 7.61 |
 | Frozen Collection | 2 | 300.0 | 2,727.90 | 1,363.95 | 7.23 |
+
+Saved result: [`data/processed/franchise_performance.csv`](../data/processed/franchise_performance.csv)
 
 ### 4.5 Top directors (by total revenue)
 
@@ -139,16 +152,20 @@ Both searches returned **0 movies**. No movie in the dataset stars Bruce Willis 
 | Chris Buck | 2 | 2,727.90 | 7.23 |
 | Jennifer Lee | 2 | 2,727.90 | 7.23 |
 
+Saved result: [`data/processed/director_performance.csv`](../data/processed/director_performance.csv)
+
 ### 4.6 Charts
 
-| Chart | Function in `src/visualize.py` | What it shows |
-|-------|-------------------------------|---------------|
-| `revenue_vs_budget.png` | `plot_revenue_vs_budget()` | Budget and revenue are only moderately related (r = 0.58) |
-| `roi_by_genre.png` | `plot_roi_by_genre()` | Comedy and Romance have the highest average ROI; Action the lowest |
-| `popularity_vs_rating.png` | `plot_popularity_vs_rating()` | Popular movies are also the best rated (r = 0.90) |
-| `yearly_box_office.png` | `plot_yearly_box_office()` | 2015, 2018 and 2019 have the most revenue in the dataset |
-| `franchise_vs_standalone.png` | `plot_franchise_vs_standalone()` | Franchises cost more; the two standalone films have a higher ROI |
-| `top_10_revenue.png` | `plot_top_10_revenue()` | Avengers: Endgame and Avatar lead |
+All charts are made by functions in [`src/visualize.py`](../src/visualize.py) and saved to [`figures/`](../figures/).
+
+| Chart | Function | What it shows |
+|-------|----------|---------------|
+| [`revenue_vs_budget.png`](../figures/revenue_vs_budget.png) | `plot_revenue_vs_budget()` | Budget and revenue are only moderately related (r = 0.58) |
+| [`roi_by_genre.png`](../figures/roi_by_genre.png) | `plot_roi_by_genre()` | Comedy and Romance have the highest average ROI; Action the lowest |
+| [`popularity_vs_rating.png`](../figures/popularity_vs_rating.png) | `plot_popularity_vs_rating()` | Popular movies are also the best rated (r = 0.90) |
+| [`yearly_box_office.png`](../figures/yearly_box_office.png) | `plot_yearly_box_office()` | 2015, 2018 and 2019 have the most revenue in the dataset |
+| [`franchise_vs_standalone.png`](../figures/franchise_vs_standalone.png) | `plot_franchise_vs_standalone()` | Franchises cost more; the two standalone films have a higher ROI |
+| [`top_10_revenue.png`](../figures/top_10_revenue.png) | `plot_top_10_revenue()` | Avengers: Endgame and Avatar lead |
 
 ## 5. Conclusions
 
@@ -157,6 +174,8 @@ Both searches returned **0 movies**. No movie in the dataset stars Bruce Willis 
 3. Audience popularity and rating are strongly linked.
 4. The Avengers is the strongest franchise by total revenue and rating.
 5. The franchise vs standalone comparison is limited: only two standalone films, one of which is *Titanic*.
+
+A plain-English summary of these findings is in [`reports/insights.md`](./insights.md).
 
 ## 6. Limitations
 
