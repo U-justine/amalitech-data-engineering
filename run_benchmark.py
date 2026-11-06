@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""
-run_benchmark.py
-----------------
-Reproduces the numbers in performance_metrics.md. For each scenario it:
-  1. empties the tables, input folder and checkpoint,
-  2. starts the Spark job, waits for it to be ready,
-  3. runs the data generator at a fixed rate (or pre-loads a backlog),
-  4. waits for every row to land in PostgreSQL,
-  5. computes latency / throughput from the database and Spark's progress log.
-
-Usage:
-    python run_benchmark.py                 # all scenarios
-    python run_benchmark.py --only S2 B1    # selected scenarios
-Results are printed and saved to logs/benchmark_results.json.
-"""
 
 import argparse
 import json
@@ -45,6 +30,7 @@ SCENARIOS = [
 ]
 
 
+# Opens a connection to PostgreSQL using the details in postgres_connection_details.txt.
 def pg():
     c = load_pg_config(os.path.join(ROOT, "postgres_connection_details.txt"))
     conn = psycopg2.connect(host=c["PG_HOST"], port=c["PG_PORT"], dbname=c["PG_DATABASE"],
@@ -53,6 +39,7 @@ def pg():
     return conn
 
 
+# Empties the tables and deletes data/ so each test scenario starts from zero.
 def reset():
     with pg() as conn, conn.cursor() as cur:
         cur.execute("TRUNCATE user_events, rejected_events, pipeline_batch_metrics, user_events_staging")
@@ -63,12 +50,14 @@ def reset():
         os.remove(prog)
 
 
+# Returns how many events are currently stored in user_events.
 def count_rows():
     with pg() as conn, conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM user_events")
         return cur.fetchone()[0]
 
 
+# Returns the p-th percentile of a list of numbers (e.g. p=95 gives the 95th percentile).
 def pct(values, p):
     values = sorted(values)
     k = (len(values) - 1) * p / 100
@@ -76,6 +65,8 @@ def pct(values, p):
     return values[f] + (values[c] - values[f]) * (k - f)
 
 
+# Calculates one scenario's results (latency, throughput, batch times) from the database
+# and from Spark's progress log.
 def collect(sid, desc, expected, wall_s, extra):
     with pg() as conn, conn.cursor() as cur:
         cur.execute("""SELECT EXTRACT(EPOCH FROM (inserted_at - event_timestamp)) * 1000,
@@ -124,6 +115,8 @@ def collect(sid, desc, expected, wall_s, extra):
     return res
 
 
+# Runs one test scenario: starts Spark, generates the events, waits until all rows are stored,
+# then collects the results.
 def run(s):
     sid, desc, files, epf, interval, trigger, mfpt, mode = s
     print(f"\n=== {sid}: {desc} ===", flush=True)
@@ -163,6 +156,7 @@ def run(s):
     return res
 
 
+# Starting point: runs all scenarios (or those chosen with --only) and saves the results to JSON.
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*")
