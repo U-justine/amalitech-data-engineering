@@ -63,7 +63,7 @@ The pipeline has three parts that work together:
 | [requirements.txt](requirements.txt) | Python packages to install |
 | [run_benchmark.py](run_benchmark.py) | Optional script that runs the performance tests |
 | [images/](images/) | Pictures used in the documents |
-| `data/` | Created automatically when the project runs (not uploaded to GitHub) |
+| [data/](user_guide.md#whats-in-the-project-folder) | Created automatically when the project runs (not uploaded to GitHub); the link explains what it holds |
 | [logs/](logs/) | Performance test results ([benchmark_results.json](logs/benchmark_results.json)) |
 
 ## How to run it
