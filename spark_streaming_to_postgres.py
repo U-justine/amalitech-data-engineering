@@ -247,6 +247,8 @@ def main():
     builder = (SparkSession.builder
                .appName("EcommerceEventsToPostgres")
                .config("spark.sql.session.timeZone", "UTC")
+               # JDBC writes TIMESTAMP values using the JVM default zone; pin it to UTC
+               # so 08:00 UTC in the CSV is stored as 08:00, whatever the host's timezone.
                .config("spark.driver.extraJavaOptions", "-Duser.timezone=UTC")
                .config("spark.executor.extraJavaOptions", "-Duser.timezone=UTC")
                .config("spark.sql.shuffle.partitions", "4")
