@@ -66,7 +66,7 @@ The pipeline has three parts that work together:
 | [data/](user_guide.md#whats-in-the-project-folder) | Created automatically when the project runs (not uploaded to GitHub); the link explains what it holds |
 | [logs/](logs/) | Performance test results ([benchmark_results.json](logs/benchmark_results.json)) |
 
-## How to run it
+## How to run it 
 
 Full first-time setup instructions (installing Ubuntu, Java, PostgreSQL and Python packages) are in **[user_guide.md](user_guide.md)**. Once everything is installed, running the project takes four steps.
 
