@@ -1,5 +1,0 @@
-v1
-{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261106_094901_241796_00003.csv","timestamp":1793958541242,"batchId":1}
-{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261106_094903_258065_00004.csv","timestamp":1793958543260,"batchId":1}
-{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261106_094905_269719_00005.csv","timestamp":1793958545273,"batchId":1}
-{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261106_094907_282425_00006.csv","timestamp":1793958547290,"batchId":1}

@@ -1,5 +1,6 @@
 # Files created when the project runs (anyone can recreate them)
-data/
+data/checkpoint/
+data/.staging/
 logs/streaming_progress.jsonl
 logs/bench_*_spark.log
 test_data/gen_check/
@@ -16,4 +17,6 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Note: logs/benchmark_results.json is kept on purpose (performance evidence)
+# Kept on purpose:
+#   data/input/                  sample CSV files from my test run
+#   logs/benchmark_results.json  performance evidence
