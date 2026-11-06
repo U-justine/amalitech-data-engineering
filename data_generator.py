@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+
+#data_generator.py
+
 """
-data_generator.py
------------------
 Simulates an e-commerce platform by writing batches of fake user-activity
 events (views, add-to-carts, purchases) as CSV files into a folder that the
 Spark Structured Streaming job watches.
@@ -13,10 +14,6 @@ Optionally injects a small share of "dirty" rows (bad prices, unknown event
 types, missing IDs, malformed timestamps, duplicates) so the Spark cleaning
 logic can be tested.
 
-Usage examples
-    python data_generator.py                              # 20 files x 100 events, 2s apart
-    python data_generator.py --files 0 --interval 1       # run forever, 1 file/sec
-    python data_generator.py --events-per-file 1000 --dirty-rate 0.05
 """
 
 import argparse
