@@ -1,93 +1,110 @@
-# Test Plan & Results — Real-Time E-commerce Pipeline
+# Test Plan and Results: Real-Time E-commerce Pipeline
 
-**Test environment:** Linux, 2 vCPU, 7 GB RAM · Python 3.13 · OpenJDK 21 · PySpark 3.5.3 (local[*]) · PostgreSQL 16.15 · JDBC driver 42.7.2  
-**Executed:** 3 Nov 2026  
-**Result:** 17 of 17 test cases pass, and all 5 live checks pass on the developer machine (section E). TC-07 failed on the first run; the defect was fixed and the test re-run (see the defect log below).
+This document lists every test I ran on the pipeline, what I expected to happen, and what actually happened.
 
-The edge-case input file used in TC-05 to TC-09 is reproduced in the [appendix](#appendix--edge-case-input-file).
+**Where and when:** all tests were run on my own laptop (Windows, with Ubuntu on WSL 2) on 6 November 2026. I started from an empty database, with no data files and no Spark checkpoint.
 
----
+**Software:** PySpark 3.5.3, Python 3.14, OpenJDK 17 and PostgreSQL, all running in Ubuntu.
 
-## A. Data generation (Part 1)
+**Result: all 17 tests passed.**
 
-| ID | Test | Steps | Expected | Actual | Status |
-|---|---|---|---|---|---|
-| TC-01 | CSV files are created correctly | `python data_generator.py --files 3 --events-per-file 50 --interval 0 --seed 1` | 3 files named `events_<ts>_<n>.csv`, each with a header plus 50 rows and 11 columns | 3 files created, 153 lines in total (3 headers + 150 rows). The header lists all 11 columns in the expected order. | ✅ Pass |
-| TC-02 | Event content is realistic and unique | Parse the 3 files and count event types and unique IDs | Every `event_id` is unique; mostly views, then carts, then purchases; prices match the catalogue | 150 unique IDs out of 150 rows. view 109 (73%), add_to_cart 30 (20%), purchase 11 (7%). Prices match the catalogue and timestamps are UTC with milliseconds. | ✅ Pass |
-| TC-03 | No partially written files are exposed | Inspect `.staging/` and the input folder after the run | Staging folder is empty; only complete files are in the input folder | Staging was empty; every file in the input folder was complete. Spark never logged a malformed or truncated read in any run. | ✅ Pass |
+The tests follow the five questions in the project brief:
 
-## B. Spark detection and transformation (Part 2)
-
-| ID | Test | Steps | Expected | Actual | Status |
-|---|---|---|---|---|---|
-| TC-04 | Spark detects new files | Start the job (2 s trigger), copy one file into `data/input/`, and measure the time until the batch metrics row appears | File picked up within one trigger interval plus processing time | First file after start-up: **7.1 s** (includes JVM/JDBC warm-up). Next file: **1.7 s**. In every run each file was processed exactly once. | ✅ Pass |
-| TC-05 | Valid rows are cleaned and typed correctly | Stream `edge_cases.csv` (12 rows) | `"  PURCHASE "` → `purchase`; `" Desktop "` → `desktop`; `electronics` → `Electronics`; total = price × qty; ISO `T` timestamp parsed | Row 2222… stored as `purchase`, `desktop`, `Electronics`, total **998.00** (499.00 × 2). Row aaaa… with `2026-11-03T08:00:10` parsed correctly, total 237.00 (79.00 × 3). Milliseconds kept (`08:00:01.5`). | ✅ Pass |
-| TC-06 | Invalid rows are rejected with the right reason | Same file; query `rejected_events` | 8 rejections, one per defect type | negative price · missing user_id · invalid event_type (`click??`) · quantity not integer (`abc`) · unparseable event_timestamp · non-positive quantity (0) · incomplete row (missing columns) · invalid event_id (`not-a-uuid`). All 8 matched. | ✅ Pass |
-| TC-07 | Timestamps are stored without shifting | Compare stored `event_timestamp` with the CSV value | `2026-11-03 08:00:00` is stored as `08:00:00` | **Run 1: FAIL.** Stored as `10:00:00` (+2 h, the host's UTC offset). **Run 2 (after fix D-1): PASS**, stored as `08:00:00`. | ✅ Pass (after fix) |
-| TC-08 | Duplicate inside one batch | `edge_cases.csv` contains event 1111… twice | Stored once and counted as a duplicate | 3 rows inserted, `duplicate_rows = 1`. Reconciles: 12 = 3 valid + 8 rejected + 1 duplicate. | ✅ Pass |
-| TC-09 | Duplicate across batches (same data, new file name) | Copy `edge_cases.csv` as `edge_cases_copy.csv` | 0 new rows in `user_events` | Batch 1: input 12, inserted **0**, duplicates 4. `user_events` stayed at 3 rows. *Note:* the 8 invalid rows are logged again in `rejected_events`, which is acceptable for an audit log. | ✅ Pass |
-| TC-10 | Empty (header-only) file | Copy a CSV that has only the header row | No error and no rows written | No batch was written, no errors, and the stream kept running. | ✅ Pass |
-| TC-11 | Same file name written again | Overwrite `edge_cases.csv` in place | Not reprocessed, because Spark tracks files by path | Not reprocessed. This is a documented limitation (see the user guide, Troubleshooting). The generator always uses unique names. | ✅ Pass |
-
-## C. PostgreSQL storage (Part 3)
-
-| ID | Test | Steps | Expected | Actual | Status |
-|---|---|---|---|---|---|
-| TC-12 | Volume run with dirty data: nothing lost | `--files 15 --events-per-file 500 --interval 1 --dirty-rate 0.05 --seed 7`, then reconcile | input = stored + rejected + duplicates; no stored row breaks a rule | 7,500 = **7,144** stored + **299** rejected + **57** duplicates. 0 rule violations (type, price, quantity, total, case). All 56 rows that only needed case/whitespace fixes were kept (56/56). | ✅ Pass |
-| TC-13 | PostgreSQL outage during streaming | Stop PostgreSQL with the job running, generate 3 files, restart PostgreSQL, restart the job | Job stops cleanly with an error and no partial data; after restart the missed files load exactly once | Job terminated with `OperationalError: Connection refused`, and `user_events` was unchanged (7,144). After restart, batch 11 loaded those 3 files (1,500 rows, 0 duplicates). | ✅ Pass |
-| TC-14 | Files arriving while Spark is down | With the job stopped, generate 2 files, then restart | Picked up on restart | Batch 12: 2 files, 1,000 rows. Total 9,644 = 7,144 + 2,500. 20 of 20 source files are present in the table. | ✅ Pass |
-| TC-15 | Restart with nothing new | Run `--available-now` again | No batches and no duplicates | 0 batches; row count stayed at 9,644. | ✅ Pass |
-| TC-16 | Database constraints | Insert directly with `event_type='refund'` and with `price=-1` | Both rejected by CHECK constraints | `violates check constraint "user_events_event_type_check"` and `"user_events_price_check"` | ✅ Pass |
-| TC-17 | Setup script is re-runnable | Run `postgres_setup.sql` twice | Second run succeeds with "already exists" notices only | Second run printed only `NOTICE … already exists, skipping`, with no errors. | ✅ Pass |
-
-## D. Performance
-
-Load and latency tests are covered in `performance_metrics.md`. In summary, every scenario stored 100% of the rows, the pipeline kept up with the highest load the generator could produce, and steady-state latency stayed within the trigger interval plus a few seconds.
+| Question from the brief | Tests |
+|---|---|
+| Are the CSV files being generated correctly? | TC-01 to TC-03 |
+| Is Spark detecting and processing new files? | TC-04, TC-10, TC-11 |
+| Are the data transformations correct? | TC-05 to TC-09, TC-12 |
+| Is data being written into PostgreSQL without errors? | TC-12 to TC-17 |
+| Are performance metrics within expected limits? | TC-18, and [performance_metrics.md](performance_metrics.md) |
 
 ---
 
-## E. Live verification on the developer machine (5 Nov 2026)
+## A. Generating the data
 
-**Environment:** Windows + WSL2 (Ubuntu), VS Code, project folder on the Windows drive (`/mnt/c/...`), PostgreSQL running locally in WSL, Spark job using the default 5 s trigger.
-
-These checks answer the five "What to Test" questions from the project brief directly.
-
-| # | Brief question | Command / evidence | Expected | Actual (live) | Status |
+| Test | What I checked | How | Expected | What happened | Result |
 |---|---|---|---|---|---|
-| L-1 | Are the CSV files being generated correctly? | `python data_generator.py --files 10 --dirty-rate 0.05`, then `head -3` on the newest file | 10 files with an 11-column header and valid rows | 10 files (`events_20261105_085959…` to `…090017…`), 1,000 events. Header and sample rows are correct, e.g. `purchase, Bluetooth Speaker, 39.50, 3, mobile, 2026-11-05 09:00:17.285` | ✅ Pass |
-| L-2 | Is Spark detecting and processing new files? | Spark was stopped while the files were written, then restarted | Waiting files are picked up automatically on restart, with no regeneration | `[batch 30] files=10 input=1000 valid=950 rejected=44 inserted=950 duplicates_skipped=6`. All 10 files were detected and processed in the first batch after the restart. | ✅ Pass |
-| L-3 | Are the data transformations correct? | `SELECT reject_reason, count(*) FROM rejected_events …` and the wrong-totals check query | Bad rows rejected with the correct reason; no stored row breaks a rule | 81 rejections in total: unparseable event_timestamp 29, negative price 16, invalid event_type 15, missing user_id 11, quantity not integer 10. `wrong_totals = 0` (every `total_amount = price × quantity` and every event type is valid). | ✅ Pass |
-| L-4 | Is data being written into PostgreSQL without errors? | `SELECT sum(input_rows), sum(inserted_rows), sum(rejected_rows), sum(duplicate_rows) FROM pipeline_batch_metrics` | input = stored + rejected + duplicates | **8,000 = 7,905 + 81 + 14.** Every row is accounted for, and the Spark UI showed no failed jobs. | ✅ Pass |
-| L-5 | Are performance metrics within expected limits? | Median of `inserted_at − event_timestamp`; average `write_duration_ms` | Median end-to-end latency under 10 s | Median latency **4.95 s**, average PostgreSQL write **586 ms** per batch | ✅ Pass |
-
-**Observation:** batch 30 logged `Current batch is falling behind … spent 10449 ms` against the 5 s trigger. This is expected. It was the first batch after a restart, carried 10 queued files (10× a normal batch), and included the one-off JVM/JDBC warm-up (the PostgreSQL write took 2,498 ms). Later batches finish within the trigger interval.
+| TC-01 | The generator creates correct CSV files | `python data_generator.py --output-dir test_data/gen_check --files 3 --events-per-file 50 --interval 0 --seed 1`, then `wc -l` | 3 files, each with the 11-column header and 50 rows | 3 files, 51 lines each (header + 50 rows), **153 lines in total**. The header has all 11 columns in the right order. | Pass |
+| TC-02 | Events are unique and realistic | Counted IDs and event types with a short Python command | Every event ID is different; mostly views, fewer carts and purchases | **150 rows, 150 unique IDs.** 109 views (73%), 30 add-to-carts (20%), 11 purchases (7%). | Pass |
+| TC-03 | No half-written files are left behind | `ls -A test_data/.staging` | The waiting folder is empty | The command printed **nothing**: the folder was empty. Every file was moved in complete. | Pass |
 
 ---
 
-## Defect log
+## B. Spark picking up and cleaning the data
 
-| ID | Found in | Description | Root cause | Fix | Retest |
+For these tests, Spark was running in one terminal (`python spark_streaming_to_postgres.py`) while I sent files from a second terminal.
+
+| Test | What I checked | How | Expected | What happened | Result |
 |---|---|---|---|---|---|
-| D-1 | TC-07 | Stored timestamps were 2 hours later than the CSV value | The session timezone was UTC, but the JDBC driver converts `TIMESTAMP` values using the **JVM default timezone** (host = UTC+2) | Added `spark.driver/executor.extraJavaOptions = -Duser.timezone=UTC` | Pass |
-| D-2 | TC-06 | A truncated row (missing trailing columns) was rejected as "price not numeric", which is misleading | No explicit completeness check | Added an "incomplete row (missing columns)" rule before the type checks | Pass |
-| D-3 | TC-04 | The batch log line was hidden behind Spark's console progress bar | Progress bar enabled by default | Set `spark.ui.showConsoleProgress=false` | Pass |
+| TC-04 | Spark notices new files and processes them | Ran `python data_generator.py` (20 files of 100 events) | Every file is picked up and saved | Batches 0 to 8 handled **20 files and 2,000 rows**, with 0 rejected and 0 duplicates. The database summary showed 382 add-to-carts + 191 purchases + 1,427 views = **2,000**. | Pass |
+| TC-05 | Messy but valid values are tidied up and kept | Copied [`test_data/edge_cases.csv`](test_data/edge_cases.csv) into `data/input` | `"  PURCHASE "` becomes `purchase`, `electronics` becomes `Electronics`, `" Desktop "` becomes `desktop`; total = price x quantity | Event `2222…` was saved as `purchase`, `Electronics`, `desktop`, total **998.00** (499.00 x 2). Event `aaaa…`, whose time was written in a different format (`2026-11-03T08:00:10`), was read correctly, total **237.00** (79.00 x 3). | Pass |
+| TC-06 | Broken rows are rejected with the right reason | Same file; checked `rejected_events` | 8 rows rejected, each with its own reason | All 8 rejected with the right reason: negative price, missing user_id, invalid event_type (`click??`), quantity not integer (`abc`), unparseable event_timestamp, non-positive quantity (0), incomplete row (missing columns), invalid event_id (`not-a-uuid`). | Pass |
+| TC-07 | Times are stored without shifting | Compared the stored times with the file | `08:00:00` in the file is stored as `08:00:00` | All times were stored as **08:00:xx**, even though my laptop is on UTC+2. Milliseconds were kept (`08:00:01.5`). | Pass |
+| TC-08 | A duplicate inside one file is saved once | Event `1111…` appears twice in the test file | Saved once, counted as a duplicate | `[batch 14] input=12 valid=3 rejected=8 inserted=3 duplicates_skipped=1`. 12 rows = 3 saved + 8 rejected + 1 duplicate. | Pass |
+| TC-09 | The same data sent again under a new file name is not saved twice | `cp test_data/edge_cases.csv data/input/edge_cases_copy.csv` | 0 new events saved | `[batch 15] input=12 valid=3 rejected=8 inserted=0 duplicates_skipped=4`. **Nothing new was saved.** | Pass |
+| TC-10 | An empty file (header only) causes no problem | `cp test_data/header_only.csv data/input/` | No batch and no error | No new batch line, no error, and Spark kept running. | Pass |
+| TC-11 | A file with a name Spark has already seen is ignored | Copied `edge_cases.csv` into the folder again under the same name | Not processed again | No new batch line. The total stayed at **2,960**. | Pass |
 
 ---
 
-## Appendix — edge-case input file
+## C. Saving to PostgreSQL
 
-```csv
-event_id,user_id,session_id,event_type,product_id,product_name,category,price,quantity,device,event_timestamp
-11111111-1111-4111-8111-111111111111,U00001,s1,view,P0001,Wireless Earbuds,Electronics,59.99,1,mobile,2026-11-03 08:00:00.000
-22222222-2222-4222-8222-222222222222,U00002,s2,  PURCHASE ,P0002,Smartphone,electronics,499.00,2, Desktop ,2026-11-03 08:00:01.500
-33333333-3333-4333-8333-333333333333,U00003,s3,purchase,P0003,USB-C Charger,Electronics,-5.00,1,mobile,2026-11-03 08:00:02.000
-44444444-4444-4444-8444-444444444444,,s4,view,P0004,Bluetooth Speaker,Electronics,39.50,1,mobile,2026-11-03 08:00:03.000
-55555555-5555-4555-8555-555555555555,U00005,s5,click??,P0005,Laptop Stand,Electronics,29.95,1,mobile,2026-11-03 08:00:04.000
-66666666-6666-4666-8666-666666666666,U00006,s6,add_to_cart,P0006,Running Shoes,Fashion,89.90,abc,tablet,2026-11-03 08:00:05.000
-77777777-7777-4777-8777-777777777777,U00007,s7,view,P0007,Denim Jacket,Fashion,74.00,1,mobile,not-a-timestamp
-88888888-8888-4888-8888-888888888888,U00008,s8,add_to_cart,P0008,Cotton T-Shirt,Fashion,14.99,0,mobile,2026-11-03 08:00:07.000
-not-a-uuid,U00009,s9,view,P0009,Leather Belt,Fashion,24.50,1,mobile,2026-11-03 08:00:08.000
-11111111-1111-4111-8111-111111111111,U00001,s1,view,P0001,Wireless Earbuds,Electronics,59.99,1,mobile,2026-11-03 08:00:00.000
-99999999-9999-4999-8999-999999999999,U00010,s10,view,P0010
-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa,U00011,s11,add_to_cart,P0011,Coffee Maker,Home & Kitchen,79.00,3,desktop,2026-11-03T08:00:10
-```
+| Test | What I checked | How | Expected | What happened | Result |
+|---|---|---|---|---|---|
+| TC-12 | A run with broken rows: nothing is lost and nothing bad is saved | `python data_generator.py --files 10 --dirty-rate 0.05` (1,000 events, about 5% broken on purpose) | Every row ends up somewhere; no saved row breaks a rule | Batches 9 to 13 handled the 1,000 rows. Across the run so far: **3,000 in = 2,957 saved + 33 rejected + 10 duplicates.** Reasons: quantity not integer 11, invalid event_type 7, negative price 6, missing user_id 5, unparseable timestamp 4. The rule check found **0** saved rows with a wrong type, price, quantity or total. | Pass |
+| TC-13 | The database is switched off while Spark is running | `sudo service postgresql stop`, then sent 3 files (1,500 events) | Spark stops with a clear error instead of losing data | Spark stopped with `psycopg2.OperationalError: connection to server at "localhost" ... port 5432 failed: Connection refused`. After switching the database back on, the count was still **2,960**: nothing was half-saved. | Pass |
+| TC-14 | Files that arrive while things are down are handled after a restart | Switched the database on, sent 2 more files (1,000 events) while Spark was stopped, then ran `python spark_streaming_to_postgres.py --available-now` | All 5 waiting files are saved once | Count went from 2,960 to **5,460** (+2,500): all 5 files saved, none lost and none twice. | Pass |
+| TC-15 | Restarting with nothing new does not process anything again | Ran `--available-now` once more | No batches; count unchanged | No batch lines. The Spark web page showed only "Executor driver added" and no jobs. Count stayed at **5,460**. | Pass |
+| TC-16 | The database itself refuses bad data | Tried to insert a `refund` event and a price of -1 directly with SQL | Both refused | `violates check constraint "user_events_event_type_check"` and `violates check constraint "user_events_price_check"`. | Pass |
+| TC-17 | The setup script can safely be run again | `sudo -u postgres psql < postgres_setup.sql` | Runs without errors and changes nothing | Only `NOTICE: relation ... already exists, skipping` messages, and no errors. | Pass |
+
+---
+
+## D. Speed
+
+| Test | What I checked | How | Expected | What happened | Result |
+|---|---|---|---|---|---|
+| TC-18 | Events reach the database quickly | Measured the time between each event being created and being saved | Typical time well under 10 seconds | Typical time **4.45 seconds**. The slowest event took 10.92 seconds; it was in the very first batch, while Spark was still warming up (that batch took 8.4 seconds). | Pass |
+
+The full speed and load tests (up to about 3,900 events per second and 626,000 events in total) are in [performance_metrics.md](performance_metrics.md).
+
+---
+
+## Things I noticed during testing
+
+- **The first batch is always slow.** Spark printed `Current batch is falling behind` once, for batch 0, because Spark and the database connection were still starting up. All later batches finished quickly (database writes of 0.2 to 0.5 seconds).
+- **Listing the folder on the Windows drive is slow.** Spark printed `Listed 33 file(s) in 2702 ms`. Ubuntu on WSL reads folders on the Windows Desktop slowly, so moving the project into Ubuntu's own home folder would make each round faster.
+- **Rejected rows are logged again if the same data is sent again.** In TC-09, the 8 broken rows from the copied file were added to `rejected_events` a second time. That is acceptable: it is a log of what arrived, and the good events were not saved twice.
+
+---
+
+## Problems found and fixed during development
+
+| Problem | Cause | Fix | Checked again |
+|---|---|---|---|
+| Times were stored 2 hours late | Spark used UTC, but the database driver converted times using the computer's own time zone (UTC+2) | Set Java to UTC as well (`-Duser.timezone=UTC`) | TC-07: times now stored correctly |
+| A cut-off row was rejected with a misleading reason ("price not numeric") | There was no check for missing columns | Added the "incomplete row (missing columns)" check before the other checks | TC-06: now shows the right reason |
+| The batch summary line was hidden by Spark's progress bar | Spark shows a progress bar by default | Turned the progress bar off | Batch lines now show clearly |
+
+---
+
+## The test file
+
+[`test_data/edge_cases.csv`](test_data/edge_cases.csv) has 12 rows. Each one tests something specific:
+
+| Row (event ID) | What is special about it | Expected outcome |
+|---|---|---|
+| 1111… | Normal row | Saved |
+| 2222… | Messy text: `"  PURCHASE "`, `electronics`, `" Desktop "` | Tidied up and saved |
+| 3333… | Price -5.00 | Rejected: negative price |
+| 4444… | No user | Rejected: missing user_id |
+| 5555… | Event type `click??` | Rejected: invalid event_type |
+| 6666… | Quantity `abc` | Rejected: quantity not integer |
+| 7777… | Date `not-a-timestamp` | Rejected: unparseable event_timestamp |
+| 8888… | Quantity 0 | Rejected: non-positive quantity |
+| not-a-uuid | Bad event ID | Rejected: invalid event_id |
+| 1111… (again) | Exact copy of the first row | Skipped as a duplicate |
+| 9999… | Row cut off after 5 columns | Rejected: incomplete row |
+| aaaa… | Time written as `2026-11-03T08:00:10` | Read correctly and saved |
+
+[`test_data/header_only.csv`](test_data/header_only.csv) contains only the header line, with no data.
