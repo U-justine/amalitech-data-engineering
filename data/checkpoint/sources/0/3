@@ -1,4 +1,3 @@
 v1
-{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261103_093656_169438_00011.csv","timestamp":1793698616440,"batchId":3}
-{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261103_093658_484285_00012.csv","timestamp":1793698618491,"batchId":3}
-{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261103_093700_504826_00013.csv","timestamp":1793698620508,"batchId":3}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261106_094911_333936_00008.csv","timestamp":1793958551336,"batchId":3}
+{"path":"file:///mnt/c/Users/User/Desktop/ecommerce-streaming/data/input/events_20261106_094913_343010_00009.csv","timestamp":1793958553347,"batchId":3}

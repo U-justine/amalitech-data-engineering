@@ -1,0 +1,19 @@
+# Files created when the project runs (anyone can recreate them)
+data/
+logs/streaming_progress.jsonl
+logs/bench_*_spark.log
+test_data/gen_check/
+test_data/.staging/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editors and operating systems
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Note: logs/benchmark_results.json is kept on purpose (performance evidence)
