@@ -1,0 +1,13 @@
+event_id,user_id,session_id,event_type,product_id,product_name,category,price,quantity,device,event_timestamp
+11111111-1111-4111-8111-111111111111,U00001,s1,view,P0001,Wireless Earbuds,Electronics,59.99,1,mobile,2026-11-03 08:00:00.000
+22222222-2222-4222-8222-222222222222,U00002,s2,  PURCHASE ,P0002,Smartphone,electronics,499.00,2, Desktop ,2026-11-03 08:00:01.500
+33333333-3333-4333-8333-333333333333,U00003,s3,purchase,P0003,USB-C Charger,Electronics,-5.00,1,mobile,2026-11-03 08:00:02.000
+44444444-4444-4444-8444-444444444444,,s4,view,P0004,Bluetooth Speaker,Electronics,39.50,1,mobile,2026-11-03 08:00:03.000
+55555555-5555-4555-8555-555555555555,U00005,s5,click??,P0005,Laptop Stand,Electronics,29.95,1,mobile,2026-11-03 08:00:04.000
+66666666-6666-4666-8666-666666666666,U00006,s6,add_to_cart,P0006,Running Shoes,Fashion,89.90,abc,tablet,2026-11-03 08:00:05.000
+77777777-7777-4777-8777-777777777777,U00007,s7,view,P0007,Denim Jacket,Fashion,74.00,1,mobile,not-a-timestamp
+88888888-8888-4888-8888-888888888888,U00008,s8,add_to_cart,P0008,Cotton T-Shirt,Fashion,14.99,0,mobile,2026-11-03 08:00:07.000
+not-a-uuid,U00009,s9,view,P0009,Leather Belt,Fashion,24.50,1,mobile,2026-11-03 08:00:08.000
+11111111-1111-4111-8111-111111111111,U00001,s1,view,P0001,Wireless Earbuds,Electronics,59.99,1,mobile,2026-11-03 08:00:00.000
+99999999-9999-4999-8999-999999999999,U00010,s10,view,P0010
+aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa,U00011,s11,add_to_cart,P0011,Coffee Maker,Home & Kitchen,79.00,3,desktop,2026-11-03T08:00:10
