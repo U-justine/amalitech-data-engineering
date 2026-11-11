@@ -21,40 +21,40 @@ exponential backoff, and **email alerts** with a fallback log file ([`data/alert
 
 ## Project layout
 
-```
-flight-price-pipeline/
-├── docker-compose.yml          # Airflow 3.1.3 + MySQL 8 (staging) + Postgres 16 (analytics)
-├── .env.example                # credentials / ports → copy to .env
-├── dags/
-│   ├── flight_price_pipeline.py    # the DAG (TaskFlow API)
-│   ├── .airflowignore              # stops Airflow parsing the package as DAG files
-│   └── flight_pipeline/            # pipeline logic, importable and testable without Airflow
-│       ├── config.py               # schema, required columns, rules, season calendar
-│       ├── schema.py               # MySQL + PostgreSQL DDL
-│       ├── db.py                   # DB-API helpers (batched INSERT, COPY)
-│       ├── ingestion.py            # CSV → stg_flight_prices_raw
-│       ├── validation.py           # schema + row-level data quality checks
-│       ├── transformation.py       # total fare, season, peak flag, route, calendar fields
-│       ├── kpis.py                 # the 4 KPI computations
-│       ├── report.py               # KPI report: data/reports/kpi_report.html with charts
-│       ├── alerts.py               # email alerts: failed, timed out, slow task, slow run
-│       ├── check_email.py          # step-by-step email connection check
-│       └── stages.py               # DB-to-DB stage functions called by the DAG
-├── data/                       # put Flight_Price_Dataset_of_Bangladesh.csv here
-├── scripts/
-│   ├── run_all.ps1             # one command: start, check, run, show results, open report
-│   ├── download_data.py        # downloads the Kaggle dataset into data/
-│   └── generate_sample_data.py # synthetic CSV with the same header (testing only)
-├── tests/                      # unit tests (pytest): pipeline logic + alerts
-└── docs/
-    ├── HOW_TO_RUN.md           # step-by-step running process (Windows)
-    ├── RUNBOOK.md              # operator guide: run, alerts, what to do, re-run
-    ├── EMAIL_SETUP.md          # Gmail alert setup: 2-Step Verification, App Password, test
-    ├── EMAIL_ALERT_TESTS.md    # test cases: success, slow, retry, failed, timed out (with screenshots)
-    ├── KAGGLE_SETUP.md         # Kaggle token, dataset download, slow downloads, troubleshooting
-    ├── REPORT.md               # project report
-    └── img/                    # alert email examples + email setup screenshots
-```
+<pre>
+<a href="./">flight-price-pipeline/</a>
+├── <a href="docker-compose.yml">docker-compose.yml</a>          # Airflow 3.1.3 + MySQL 8 (staging) + Postgres 16 (analytics)
+├── <a href=".env.example">.env.example</a>                # credentials / ports → copy to .env
+├── <a href="dags/">dags/</a>
+│   ├── <a href="dags/flight_price_pipeline.py">flight_price_pipeline.py</a>    # the DAG (TaskFlow API)
+│   ├── <a href="dags/.airflowignore">.airflowignore</a>              # stops Airflow parsing the package as DAG files
+│   └── <a href="dags/flight_pipeline/">flight_pipeline/</a>            # pipeline logic, importable and testable without Airflow
+│       ├── <a href="dags/flight_pipeline/config.py">config.py</a>               # schema, required columns, rules, season calendar
+│       ├── <a href="dags/flight_pipeline/schema.py">schema.py</a>               # MySQL + PostgreSQL DDL
+│       ├── <a href="dags/flight_pipeline/db.py">db.py</a>                   # DB-API helpers (batched INSERT, COPY)
+│       ├── <a href="dags/flight_pipeline/ingestion.py">ingestion.py</a>            # CSV → stg_flight_prices_raw
+│       ├── <a href="dags/flight_pipeline/validation.py">validation.py</a>           # schema + row-level data quality checks
+│       ├── <a href="dags/flight_pipeline/transformation.py">transformation.py</a>       # total fare, season, peak flag, route, calendar fields
+│       ├── <a href="dags/flight_pipeline/kpis.py">kpis.py</a>                 # the 4 KPI computations
+│       ├── <a href="dags/flight_pipeline/report.py">report.py</a>               # KPI report: data/reports/kpi_report.html with charts
+│       ├── <a href="dags/flight_pipeline/alerts.py">alerts.py</a>               # email alerts: failed, timed out, slow task, slow run
+│       ├── <a href="dags/flight_pipeline/check_email.py">check_email.py</a>          # step-by-step email connection check
+│       └── <a href="dags/flight_pipeline/stages.py">stages.py</a>               # DB-to-DB stage functions called by the DAG
+├── <a href="data/">data/</a>                       # put Flight_Price_Dataset_of_Bangladesh.csv here
+├── <a href="scripts/">scripts/</a>
+│   ├── <a href="scripts/run_all.ps1">run_all.ps1</a>             # one command: start, check, run, show results, open report
+│   ├── <a href="scripts/download_data.py">download_data.py</a>        # downloads the Kaggle dataset into data/
+│   └── <a href="scripts/generate_sample_data.py">generate_sample_data.py</a> # synthetic CSV with the same header (testing only)
+├── <a href="tests/">tests/</a>                      # unit tests (pytest): pipeline logic + alerts + report
+└── <a href="docs/">docs/</a>
+    ├── <a href="docs/HOW_TO_RUN.md">HOW_TO_RUN.md</a>           # step-by-step running process (Windows)
+    ├── <a href="docs/RUNBOOK.md">RUNBOOK.md</a>              # operator guide: run, alerts, what to do, re-run
+    ├── <a href="docs/EMAIL_SETUP.md">EMAIL_SETUP.md</a>          # Gmail alert setup: 2-Step Verification, App Password, test
+    ├── <a href="docs/EMAIL_ALERT_TESTS.md">EMAIL_ALERT_TESTS.md</a>    # test cases: success, slow, retry, failed, timed out (with screenshots)
+    ├── <a href="docs/KAGGLE_SETUP.md">KAGGLE_SETUP.md</a>         # Kaggle token, dataset download, slow downloads, troubleshooting
+    ├── <a href="docs/REPORT.md">REPORT.md</a>               # project report
+    └── <a href="docs/img/">img/</a>                    # alert email examples + email setup screenshots
+</pre>
 
 ## Quick start
 
