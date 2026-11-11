@@ -3,8 +3,8 @@ pandas>=2.1
 numpy>=1.26
 pytest>=7
 kaggle>=1.6
-six              # kaggle needs this but doesn't install it
-python-dateutil
-requests
-tqdm
-python-slugify
+six>=1.16              # kaggle needs this but doesn't install it
+python-dateutil>=2.8
+requests>=2.31
+tqdm>=4.66
+python-slugify>=8.0
