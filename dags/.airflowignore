@@ -1,0 +1,2 @@
+# not DAGs, just my helper code. tell Airflow not to scan it
+flight_pipeline/*
