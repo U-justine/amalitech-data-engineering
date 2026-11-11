@@ -1,0 +1,20 @@
+.env
+logs/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/*.csv
+!data/.gitkeep
+data/alerts.log
+
+# Kaggle API token (secret) - never commit
+kaggle.json
+
+# Local Python virtual environment
+.venv/
+
+# Temporary folder used while downloading the Kaggle dataset
+data/.download/
+
+# Generated KPI report (rebuilt by every run)
+data/reports/

@@ -1,0 +1,10 @@
+# only for running things on my laptop (tests + downloading the data), Airflow is in docker
+pandas>=2.1
+numpy>=1.26
+pytest>=7
+kaggle>=1.6
+six              # kaggle needs this but doesn't install it
+python-dateutil
+requests
+tqdm
+python-slugify
