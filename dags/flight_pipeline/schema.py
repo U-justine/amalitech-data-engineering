@@ -158,6 +158,17 @@ CREATE INDEX IF NOT EXISTS idx_fact_airline ON {PG_SCHEMA}.fact_flight_prices (a
 CREATE INDEX IF NOT EXISTS idx_fact_route ON {PG_SCHEMA}.fact_flight_prices (route);
 CREATE INDEX IF NOT EXISTS idx_fact_season ON {PG_SCHEMA}.fact_flight_prices (season);
 
+-- md5 of the last file that was loaded ok, so the same file isn't loaded twice
+CREATE TABLE IF NOT EXISTS {PG_SCHEMA}.pipeline_watermark (
+    pipeline VARCHAR(100) PRIMARY KEY,
+    source_file VARCHAR(500) NOT NULL,
+    file_md5 CHAR(32) NOT NULL,
+    file_bytes BIGINT,
+    rows_loaded INTEGER,
+    batch_id VARCHAR(250) NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS {PG_SCHEMA}.pipeline_run_log (
     batch_id VARCHAR(250) PRIMARY KEY,
     rows_in_file INTEGER,

@@ -77,7 +77,7 @@ without Airflow.
 ```mermaid
 flowchart LR
     subgraph E[extract]
-        A[check_source_file] --> B[create_staging_tables] --> C[extract_csv_to_mysql]
+        A[check_source_file] --> W[check_watermark] --> B[create_staging_tables] --> C[extract_csv_to_mysql]
     end
     subgraph T[transform]
         D[validate_data] --> F[transform_data]
@@ -87,7 +87,7 @@ flowchart LR
         F --> G4[kpis.kpi_popular_routes]
     end
     subgraph L[load]
-        H0[create_analytics_tables] --> H[load_to_postgres] --> I[verify_postgres_load] --> R[build_kpi_report] --> J[notify_success]
+        H0[create_analytics_tables] --> H[load_to_postgres] --> I[verify_postgres_load] --> U[update_watermark] --> R[build_kpi_report] --> J[notify_success]
     end
     C --> D
     G1 & G2 & G3 & G4 --> H
@@ -135,6 +135,7 @@ Scheduled runs use the defaults. Tested: a manual run with `top_routes_limit=5` 
 | Group | Task | Description | Output |
 |---|---|---|---|
 | extract | `check_source_file` | Checks that the CSV exists and is not empty, and records its size and MD5 checksum. A missing or empty file raises a *retryable* error, because the file may arrive late. | file info |
+| extract | `check_watermark` | Short-circuit task: compares the file's MD5 with the last successful load in `analytics.pipeline_watermark`. Same file → all downstream tasks are skipped and the run ends green; changed file, first run or `force_full_reload` → continue. | run / skip |
 | extract | `create_staging_tables` | Idempotent `CREATE TABLE IF NOT EXISTS` for all MySQL tables, generated from the schema in `config.py`. | MySQL tables |
 | extract | `extract_csv_to_mysql` | Reads the CSV as text, normalises the headers, casts each column to its type, and bulk-inserts into `stg_flight_prices_raw` in batches of 5,000. Writes an `ingestion_audit` row and **verifies that the MySQL row count equals the file row count**. | raw staging |
 | transform | `validate_data` | Schema check, then row-level checks (Section 3). Writes `stg_flight_prices_validated` and `dq_issues`. **Quality gate:** fails if there are no rows or the rejected share is above `max_reject_ratio`. | validated rows + issues |
@@ -143,6 +144,7 @@ Scheduled runs use the defaults. Tested: a manual run with `top_routes_limit=5` 
 | load | `create_analytics_tables` | Idempotent DDL for the `analytics` schema, indexes and views. | PG tables |
 | load | `load_to_postgres` | Reads the enriched and KPI tables from MySQL, then **in one PostgreSQL transaction** truncates the targets, `COPY`s each table in, and upserts `pipeline_run_log`. | analytics tables |
 | load | `verify_postgres_load` | Reconciles MySQL against PostgreSQL: row counts per table, Σ bookings per airline = fact rows, Σ bookings per route = fact rows, Σ `total_fare` equal in both databases, and `total = base + tax` on every row. | verification report |
+| load | `update_watermark` | Upserts the file's MD5 into `analytics.pipeline_watermark`, only after `verify_postgres_load` passed. | watermark |
 | load | `build_kpi_report` | Reads the KPI tables from PostgreSQL and writes `data/reports/kpi_report.html`: a self-contained page (inline SVG charts, no internet needed) with headline numbers, a chart per KPI, hover details, light and dark mode, and a table view. The file is written to a temporary name and then renamed, so it's never half-written. | KPI report |
 | load | `notify_success` | Builds the run summary (rows in file, valid, rejected, loaded, Σ fare). Logs it, and emails it when `send_success_email` is on. Also runs the SLOW RUN check. | summary |
 

@@ -38,6 +38,7 @@ Options:
 | `-SendTestEmail` | Also send a test email in step 4 |
 | `-SkipEmailCheck` | Skip step 4 |
 | `-NoOpen` | Don't open the report at the end |
+| `-Force` | Load the file even if it's the same as last time (ignores the watermark) |
 | `-TimeoutMinutes 20` | Wait longer for the run (default 15) |
 
 The run ID printed by the script is the same one shown in the Airflow UI, in the SUCCESS email, in
@@ -115,9 +116,9 @@ The pipeline runs **automatically every day at 00:00 UTC**. To run it now:
 Click the DAG → **Grid** view. The tasks run in this order (about 30–60 seconds in total):
 
 ```
-extract   : check_source_file → create_staging_tables → extract_csv_to_mysql
+extract   : check_source_file → check_watermark → create_staging_tables → extract_csv_to_mysql
 transform : validate_data → transform_data → kpis (4 in parallel)
-load      : create_analytics_tables → load_to_postgres → verify_postgres_load → build_kpi_report → notify_success
+load      : create_analytics_tables → load_to_postgres → verify_postgres_load → update_watermark → build_kpi_report → notify_success
 ```
 
 | Colour | Meaning |
@@ -169,6 +170,23 @@ docker compose stop        # stop, keep all data (start again with: docker compo
 docker compose down        # remove containers, KEEP data (volumes)
 docker compose down -v     # remove containers AND all data (full reset)
 ```
+
+---
+
+## Watermark: why a run can be skipped
+
+If the CSV in `data\` is exactly the same file as the last successful load, the
+`extract.check_watermark` task stops the run: everything after it shows as **skipped** (pink) and the
+run is still **green**. Nothing is reloaded, because nothing changed. `run_all.ps1` prints
+*"skipped by the watermark (same file)"*.
+
+To load it anyway (for example after changing the code, or for a demo):
+
+* **Script:** `powershell -ExecutionPolicy Bypass -File scripts\run_all.ps1 -Force`
+* **UI:** Trigger, then switch on `force_full_reload` in the form
+* **Command line:** `docker compose exec airflow-scheduler airflow dags trigger flight_price_pipeline --conf '{\"force_full_reload\": true}'`
+
+Replacing the CSV with a new file is detected automatically: its checksum is different.
 
 ---
 

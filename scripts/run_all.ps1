@@ -12,6 +12,9 @@
     6. show the results from Postgres
     7. open the KPI report (data\reports\kpi_report.html)
 
+    If the csv is the same file as last time, the watermark skips the run.
+    Use -Force to load it anyway.
+
     If something goes wrong it stops there and says what to do.
 
 .EXAMPLE
@@ -23,6 +26,7 @@
 param(
     [switch]$SkipEmailCheck,     # don't test the Gmail connection
     [switch]$SendTestEmail,      # also send a test email during the email check
+    [switch]$Force,              # load the file even if it's the same as last time (ignores the watermark)
     [switch]$NoOpen,             # don't open the KPI report at the end
     [switch]$Download,           # get the Kaggle data first if the csv is missing
     [int]$TimeoutMinutes = 15    # how long to wait for the run to finish
@@ -146,7 +150,14 @@ if ($SkipEmailCheck) {
 # ---- 5. run the pipeline
 Step "Running the pipeline"
 $runId = "manual__run_all_" + (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ss")
-$null = Airflow @("dags", "trigger", $Dag, "--run-id", $runId)
+$trigger = @("dags", "trigger", $Dag, "--run-id", $runId)
+if ($Force) {
+    # Windows PowerShell 5.1 strips the quotes inside json for docker.exe, so they need a backslash there
+    $conf = if ($PSVersionTable.PSVersion -ge [version]"7.3") { '{"force_full_reload": true}' } else { '{\"force_full_reload\": true}' }
+    $trigger += @("--conf", $conf)
+    Info "Force: ignoring the watermark, the file will be loaded again"
+}
+$null = Airflow $trigger
 Info "Triggered run: $runId"
 Info "Watch it live: http://localhost:8080/dags/$Dag"
 
@@ -168,12 +179,25 @@ if ($state -ne "success") {
 }
 Ok "Run succeeded: $runId"
 
+# did the watermark skip it? then extract_csv_to_mysql is 'skipped'
+$taskStates = JsonFrom (Airflow @("tasks", "states-for-dag-run", $Dag, $runId, "-o", "json"))
+$extractState = ($taskStates | Where-Object { $_.task_id -eq "extract.extract_csv_to_mysql" } | Select-Object -First 1).state
+$skipped = ($extractState -eq "skipped")
+
 # ---- 6. results
 Step "Results in PostgreSQL"
 $pgUser = EnvValue "ANALYTICS_PG_USER" "analytics_user"
 $pgDb = EnvValue "ANALYTICS_PG_DB" "flight_analytics"
 function Psql($sql) { & docker compose exec -T postgres-analytics psql -U $pgUser -d $pgDb -c $sql 2>$null }
-Psql "SELECT batch_id, rows_in_file, rows_valid, rows_rejected, rows_loaded, loaded_at FROM analytics.pipeline_run_log WHERE batch_id = '$runId';"
+if ($skipped) {
+    Warn "Same file as the last load -> the watermark skipped this run, nothing was reloaded."
+    Info "Run again with -Force to load it anyway. The data below is from the last real load:"
+    Psql "SELECT pipeline, file_md5, rows_loaded, batch_id, updated_at FROM analytics.pipeline_watermark;"
+} else {
+    Psql "SELECT batch_id, rows_in_file, rows_valid, rows_rejected, rows_loaded, loaded_at FROM analytics.pipeline_run_log WHERE batch_id = '$runId';"
+    Info "Watermark saved for this file:"
+    Psql "SELECT file_md5, rows_loaded, batch_id, updated_at FROM analytics.pipeline_watermark;"
+}
 Info "Top 5 airlines by average fare:"
 Psql "SELECT fare_rank, airline, avg_total_fare, booking_count FROM analytics.kpi_avg_fare_by_airline ORDER BY fare_rank LIMIT 5;"
 Info "Peak vs non-peak:"
@@ -185,7 +209,8 @@ Psql "SELECT route_rank, route, booking_count, avg_total_fare FROM analytics.v_t
 Step "KPI report"
 if (Test-Path $Report) {
     $age = (Get-Date) - (Get-Item $Report).LastWriteTime
-    if ($age.TotalMinutes -gt 30) { Warn "kpi_report.html is $([int]$age.TotalMinutes) minutes old - was the report task skipped?" }
+    if ($age.TotalMinutes -gt 30 -and -not $skipped) { Warn "kpi_report.html is $([int]$age.TotalMinutes) minutes old - was the report task skipped?" }
+    if ($skipped) { Info "This is the report from the last real load (the run was skipped)." }
     Ok "Report: $Report  (updated $((Get-Item $Report).LastWriteTime))"
     if (-not $NoOpen) { Start-Process $Report }
 } else {
@@ -193,7 +218,8 @@ if (Test-Path $Report) {
 }
 
 Write-Host ""
-Write-Host "Done. Run $runId succeeded." -ForegroundColor Green
+if ($skipped) { Write-Host "Done. Run $runId skipped by the watermark (same file). Use -Force to reload." -ForegroundColor Green }
+else { Write-Host "Done. Run $runId succeeded." -ForegroundColor Green }
 Write-Host "  Airflow UI : http://localhost:8080/dags/$Dag"
 Write-Host "  KPI report : data\reports\kpi_report.html"
 Write-Host "  Email      : look for '[Airflow] SUCCESS' in $(EnvValue 'ALERT_EMAIL_TO' 'your inbox')"

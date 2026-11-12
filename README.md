@@ -39,13 +39,14 @@ exponential backoff, and **email alerts** with a fallback log file ([`data/alert
 │       ├── <a href="dags/flight_pipeline/report.py">report.py</a>               # KPI report: data/reports/kpi_report.html with charts
 │       ├── <a href="dags/flight_pipeline/alerts.py">alerts.py</a>               # email alerts: failed, timed out, slow task, slow run
 │       ├── <a href="dags/flight_pipeline/check_email.py">check_email.py</a>          # step-by-step email connection check
+│       ├── <a href="dags/flight_pipeline/watermark.py">watermark.py</a>            # file watermark: skip the run if the csv didn't change
 │       └── <a href="dags/flight_pipeline/stages.py">stages.py</a>               # DB-to-DB stage functions called by the DAG
 ├── <a href="data/">data/</a>                       # put Flight_Price_Dataset_of_Bangladesh.csv here
 ├── <a href="scripts/">scripts/</a>
 │   ├── <a href="scripts/run_all.ps1">run_all.ps1</a>             # one command: start, check, run, show results, open report
 │   ├── <a href="scripts/download_data.py">download_data.py</a>        # downloads the Kaggle dataset into data/
 │   └── <a href="scripts/generate_sample_data.py">generate_sample_data.py</a> # synthetic CSV with the same header (testing only)
-├── <a href="tests/">tests/</a>                      # unit tests (pytest): pipeline logic + alerts + report
+├── <a href="tests/">tests/</a>                      # unit tests (pytest): pipeline logic + alerts + report + watermark
 └── <a href="docs/">docs/</a>
     ├── <a href="docs/HOW_TO_RUN.md">HOW_TO_RUN.md</a>           # step-by-step running process (Windows)
     ├── <a href="docs/RUNBOOK.md">RUNBOOK.md</a>              # operator guide: run, alerts, what to do, re-run
@@ -121,6 +122,24 @@ a streaming engine; see the report, section 6.
 Connections are injected as environment variables (`AIRFLOW_CONN_MYSQL_STAGING`,
 `AIRFLOW_CONN_POSTGRES_ANALYTICS`), so no manual setup in the UI is needed.
 Host ports: MySQL `3307`, analytics Postgres `5433`, Airflow `8080`.
+
+## Watermark: skip the run if the file didn't change
+
+After a run has loaded and checked everything, the pipeline saves the **md5 checksum of the CSV** in
+`analytics.pipeline_watermark`. The next run (`extract.check_watermark`) compares the file in `data/` with it:
+
+| Situation | What happens |
+|---|---|
+| Same file as the last good load | The rest of the run is **skipped** (pink in Airflow). The run still ends green, nothing is reloaded. |
+| File changed | Full run, then the watermark is updated |
+| First run (no watermark yet) | Full run |
+| `force_full_reload = true` (param), or `run_all.ps1 -Force` | Full run even if the file is the same, for example after changing the code |
+
+The watermark is saved only after `verify_postgres_load` has passed, so a failed run never marks a file as done.
+
+```sql
+SELECT * FROM analytics.pipeline_watermark;
+```
 
 ## Run parameters and retry policy
 

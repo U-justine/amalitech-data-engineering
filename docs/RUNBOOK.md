@@ -21,13 +21,13 @@ each alert means, and what to do when something goes wrong. For design details, 
 ```mermaid
 flowchart LR
     subgraph E[extract]
-        A[check_source_file] --> B[create_staging_tables] --> C[extract_csv_to_mysql]
+        A[check_source_file] --> W[check_watermark] --> B[create_staging_tables] --> C[extract_csv_to_mysql]
     end
     subgraph T[transform]
         D[validate_data] --> F[transform_data] --> K[kpis x4 in parallel]
     end
     subgraph L[load]
-        G[create_analytics_tables] --> H[load_to_postgres] --> I[verify_postgres_load] --> R[build_kpi_report] --> J[notify_success]
+        G[create_analytics_tables] --> H[load_to_postgres] --> I[verify_postgres_load] --> U[update_watermark] --> R[build_kpi_report] --> J[notify_success]
     end
     E --> T --> L
 ```
@@ -35,6 +35,7 @@ flowchart LR
 | Step | Task | In one line |
 |---|---|---|
 | Extract | `extract.check_source_file` | Is the CSV there and not empty? Waits up to ~15 min for a late file. |
+| Extract | `extract.check_watermark` | Same file as the last good load? Then the rest of the run is skipped (pink). |
 | Extract | `extract.create_staging_tables` | Creates the MySQL tables if they don't exist. |
 | Extract | `extract.extract_csv_to_mysql` | Copies the CSV into MySQL and checks that the row counts match. |
 | Transform | `transform.validate_data` | Checks the data quality and stops the run if the data is bad. |
@@ -43,6 +44,7 @@ flowchart LR
 | Load | `load.create_analytics_tables` | Creates the PostgreSQL tables if they don't exist. |
 | Load | `load.load_to_postgres` | Replaces the analytics tables in one transaction. |
 | Load | `load.verify_postgres_load` | Checks that PostgreSQL matches MySQL. |
+| Load | `load.update_watermark` | Saves the file's checksum after a verified load. |
 | Load | `load.build_kpi_report` | Writes the KPI charts page [`data/reports/kpi_report.html`](../data/reports/kpi_report.html). |
 | Load | `load.notify_success` | Logs a summary of the run, and emails it if that is turned on. |
 
@@ -77,6 +79,7 @@ Scheduled runs use the defaults. Change them only for a manual run.
 | `csv_path` | `/opt/airflow/data/Flight_Price_Dataset_of_Bangladesh.csv` | To run a file with a different name. It must be inside [`data/`](../data/), which appears as `/opt/airflow/data/` in the container. |
 | `max_reject_ratio` | `0.05` (5 %) | To accept a file with more bad rows **after you've checked them**. Don't raise it just to make a red run go green. |
 | `top_routes_limit` | `10` | How many routes count as "top routes". |
+| `force_full_reload` | `false` | Load the file even if it's the same as the last load (ignores the watermark). |
 | `send_success_email` | `ALERT_EMAIL_ON_SUCCESS` from `.env` | Turn it on or off for one manual run. |
 
 ### Pause or stop

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import io
 import logging
+import math
+from contextlib import suppress
 
 from typing import Sequence
 
@@ -21,11 +23,9 @@ def _native(value):
     """numpy/pandas values -> normal python values, the db drivers don't like numpy types"""
     if value is None:
         return None
-    try:
+    with suppress(TypeError, ValueError):
         if pd.isna(value):          # NaN, NaT and pd.NA all become NULL
             return None
-    except (TypeError, ValueError):
-        pass
     if isinstance(value, pd.Timestamp):
         return value.to_pydatetime()
     if isinstance(value, np.generic):
