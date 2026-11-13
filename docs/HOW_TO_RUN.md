@@ -22,7 +22,7 @@ and stopping with a clear message at the first problem:
 
 | Step | What it does |
 |---|---|
-| 1 | Checks that Docker is running, that `.env` exists, and that the dataset is in `data\` |
+| 1 | Checks that Docker is running, that [`.env`](../.env.example) exists, and that the dataset is in [`data\`](../data/) |
 | 2 | `docker compose up -d`, then waits until all services are **healthy** |
 | 3 | Checks that the DAG loaded with no import errors (and that it's switched on) |
 | 4 | Checks the Gmail connection (login only, no email sent) |
@@ -34,7 +34,7 @@ Options:
 
 | Option | Effect |
 |---|---|
-| `-Download` | If the dataset is missing, download it from Kaggle first (needs `kaggle.json`, see [`KAGGLE_SETUP.md`](KAGGLE_SETUP.md)) |
+| `-Download` | If the dataset is missing, download it from Kaggle first (needs [`kaggle.json`](KAGGLE_SETUP.md), see [`KAGGLE_SETUP.md`](KAGGLE_SETUP.md)) |
 | `-SendTestEmail` | Also send a test email in step 4 |
 | `-SkipEmailCheck` | Skip step 4 |
 | `-NoOpen` | Don't open the report at the end |
@@ -54,9 +54,9 @@ The step-by-step version of the same process is below.
 | Item | Check |
 |---|---|
 | Docker Desktop installed and **running** (whale icon in the taskbar) | `docker --version` |
-| `.env` file exists with passwords and email settings | `Get-Content .env` |
-| Gmail App Password in `.env` (`SMTP_PASSWORD`, no spaces) | see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
-| CSV in the data folder | `dir data` shows `Flight_Price_Dataset_of_Bangladesh.csv`. To get it: [`KAGGLE_SETUP.md`](KAGGLE_SETUP.md) |
+| [`.env`](../.env.example) file exists with passwords and email settings | [`Get-Content .env`](../.env.example) |
+| Gmail App Password in [`.env`](../.env.example) (`SMTP_PASSWORD`, no spaces) | see [`EMAIL_SETUP.md`](EMAIL_SETUP.md) |
+| CSV in the data folder | `dir data` shows [`Flight_Price_Dataset_of_Bangladesh.csv`](https://www.kaggle.com/datasets/mahatiratusher/flight-price-dataset-of-bangladesh). To get it: [`KAGGLE_SETUP.md`](KAGGLE_SETUP.md) |
 | `logs` folder exists | `mkdir logs -Force` |
 
 ---
@@ -175,14 +175,14 @@ docker compose down -v     # remove containers AND all data (full reset)
 
 ## Watermark: why a run can be skipped
 
-If the CSV in `data\` is exactly the same file as the last successful load, the
+If the CSV in [`data\`](../data/) is exactly the same file as the last successful load, the
 `extract.check_watermark` task stops the run: everything after it shows as **skipped** (pink) and the
-run is still **green**. Nothing is reloaded, because nothing changed. `run_all.ps1` prints
+run is still **green**. Nothing is reloaded, because nothing changed. [`run_all.ps1`](../scripts/run_all.ps1) prints
 *"skipped by the watermark (same file)"*.
 
 To load it anyway (for example after changing the code, or for a demo):
 
-* **Script:** `powershell -ExecutionPolicy Bypass -File scripts\run_all.ps1 -Force`
+* **Script:** [`powershell -ExecutionPolicy Bypass -File scripts\run_all.ps1 -Force`](../scripts/run_all.ps1)
 * **UI:** Trigger, then switch on `force_full_reload` in the form
 * **Command line:** `docker compose exec airflow-scheduler airflow dags trigger flight_price_pipeline --conf '{\"force_full_reload\": true}'`
 
@@ -213,7 +213,7 @@ tasks) and `airflow-dag-processor` (reads the DAG files).
 
 | You changed | Do this |
 |---|---|
-| `.env` (passwords, email, thresholds, retries) | `docker compose up -d` |
+| [`.env`](../.env.example) (passwords, email, thresholds, retries) | `docker compose up -d` |
 | Python code in [`dags\`](../dags/) | Nothing. Airflow picks it up within about 30 seconds. |
 | [`docker-compose.yml`](../docker-compose.yml) | `docker compose up -d` |
 | The CSV in [`data\`](../data/) | Trigger the DAG again. Re-runs replace the data, with no duplicates. |
@@ -222,7 +222,7 @@ tasks) and `airflow-dag-processor` (reads the DAG files).
 
 | Problem | Fix |
 |---|---|
-| `WARN ... variable is not set` / `.env not found` | `.env` is missing. Create it from [`.env.example`](../.env.example) (see `EMAIL_SETUP.md`, Step 3). |
+| `WARN ... variable is not set` / [`.env not found`](../.env.example) | [`.env`](../.env.example) is missing. Create it from [`.env.example`](../.env.example) (see [`EMAIL_SETUP.md`](EMAIL_SETUP.md), Step 3). |
 | `error during connect` / `docker` not found | Start **Docker Desktop** and wait until it says *running*. |
 | Old containers from an earlier setup are still listed | Run `docker compose up -d --remove-orphans` |
 | Port 8080 already in use | Another Airflow, such as the course demo, is running. Stop it: `docker compose down` in that folder. |

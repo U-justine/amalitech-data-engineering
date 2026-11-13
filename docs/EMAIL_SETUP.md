@@ -38,14 +38,14 @@ Airflow can't sign in with your normal Gmail password. It needs a separate 16-ch
 
 ![App password "airflow" created](img/email_setup/2_app_password.png)
 
-> If you lose the code, delete the `airflow` entry (🗑) and create a new one, then update `.env` (Step 3).
+> If you lose the code, delete the `airflow` entry (🗑) and create a new one, then update [`.env`](../.env.example) (Step 3).
 > Deleting it also immediately stops anyone else from using it.
 
 ---
 
-## Step 3: Put the settings in `.env`
+## Step 3: Put the settings in [`.env`](../.env.example)
 
-Open `.env` in the project folder (next to [`docker-compose.yml`](../docker-compose.yml)) and set:
+Open [`.env`](../.env.example) in the project folder (next to [`docker-compose.yml`](../docker-compose.yml)) and set:
 
 ```dotenv
 SMTP_HOST=smtp.gmail.com
@@ -63,19 +63,19 @@ ALERT_EMAIL_ON_RETRY=true               # email on every retry (false = only in 
 Rules:
 
 * Write the password **without spaces** and without quotes.
-* Never commit `.env` or paste the password into a chat or document. [`.gitignore`](../.gitignore) already excludes `.env`.
-* If you don't have a `.env` file yet, create it from the template. In Windows PowerShell:
+* Never commit [`.env`](../.env.example) or paste the password into a chat or document. [`.gitignore`](../.gitignore) already excludes [`.env`](../.env.example).
+* If you don't have a [`.env`](../.env.example) file yet, create it from the template. In Windows PowerShell:
   ```powershell
   Copy-Item .env.example .env
   ```
-  Then edit it in VS Code. Don't create it with `echo … > .env`, because Windows PowerShell saves that
+  Then edit it in VS Code. Don't create it with [`echo … > .env`](../.env.example), because Windows PowerShell saves that
   as UTF-16, which Docker can't read.
 
 ---
 
 ## Step 4: Restart the containers
 
-The containers read `.env` only when they start:
+The containers read [`.env`](../.env.example) only when they start:
 
 ```powershell
 docker compose up -d
@@ -146,7 +146,7 @@ To trigger a run now, open `flight_price_pipeline` → **Trigger**.
 
 **Optional: test a SLOW TASK alert**
 
-1. In `.env`, set `ALERT_SLOW_LOAD_SECONDS=0` and run `docker compose up -d`.
+1. In [`.env`](../.env.example), set `ALERT_SLOW_LOAD_SECONDS=0` and run `docker compose up -d`.
 2. Trigger the DAG at [http://localhost:8080](http://localhost:8080) → `flight_price_pipeline` → ▶.
 3. You should receive `[Airflow] SLOW TASK: flight_price_pipeline.load.load_to_postgres took …`, followed by `[Airflow] SUCCESS: …`.
 4. Set `ALERT_SLOW_LOAD_SECONDS=120` again and run `docker compose up -d`.
@@ -164,10 +164,10 @@ screenshots of the emails received: [`EMAIL_ALERT_TESTS.md`](EMAIL_ALERT_TESTS.m
 
 | `check_email` says | Cause | Fix |
 |---|---|---|
-| `[FAIL] SMTP_PASSWORD is empty`, or it shows the placeholder | `.env` not saved, or the containers weren't restarted | Save `.env`, then `docker compose up -d` |
+| `[FAIL] SMTP_PASSWORD is empty`, or it shows the placeholder | [`.env`](../.env.example) not saved, or the containers weren't restarted | Save [`.env`](../.env.example), then `docker compose up -d` |
 | `[WARN] Gmail App Passwords are 16 characters` | Your normal Gmail password was used | Use the App Password from Step 2 |
 | `[FAIL] cannot connect` | No internet from Docker, or a firewall or antivirus is blocking port 587 | Check your connection and firewall, or try `SMTP_PORT=465` with `SMTP_SSL=true` and `SMTP_STARTTLS=false` |
-| `[FAIL] login refused: 535` | Wrong or revoked App Password, or 2-Step Verification is off | Repeat Steps 1–2 with a new App Password, update `.env`, restart |
+| `[FAIL] login refused: 535` | Wrong or revoked App Password, or 2-Step Verification is off | Repeat Steps 1–2 with a new App Password, update [`.env`](../.env.example), restart |
 | Everything `[OK]`, but no email | Gmail filed it in Sent or Spam | See Step 6 |
 
 Even when email fails, every retry and failure is still written to **[`data/alerts.log`](../data/alerts.log)**.

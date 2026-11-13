@@ -1,7 +1,7 @@
 # Email alert test cases
 
 These tests show that the pipeline sends an email in **every** alert case: success, slow task, slow
-run, retry, failure and timeout. Each test changes a few settings in `.env` on purpose, triggers the
+run, retry, failure and timeout. Each test changes a few settings in [`.env`](../.env.example) on purpose, triggers the
 DAG, and checks the inbox. The pipeline's data stays safe throughout: a failed or timed-out load rolls
 back, and PostgreSQL keeps the last good load.
 
@@ -28,7 +28,7 @@ RETRYING, FAILED and TIMED OUT were additionally written to the fallback log [`d
 
 ## How to run a test
 
-1. Change the settings listed for the test in `.env` and save.
+1. Change the settings listed for the test in [`.env`](../.env.example) and save.
 2. Restart so Airflow reads them: `docker compose up -d`, then wait until `airflow-scheduler` shows **healthy** in `docker compose ps`.
 3. Trigger the run with the command given for the test.
 4. Search Gmail for `subject:"[Airflow]" in:anywhere`.
@@ -38,7 +38,7 @@ RETRYING, FAILED and TIMED OUT were additionally written to the fallback log [`d
 
 ## Test A: slow task, slow run and success (one normal run)
 
-**Settings in `.env`:**
+**Settings in [`.env`](../.env.example):**
 
 ```dotenv
 ALERT_SLOW_LOAD_SECONDS=0      # normal: 120
@@ -81,7 +81,7 @@ rejected 0, loaded 57,000, Σ total fare 4,009,824,318.3 BDT.
 
 ## Test B: retry, then final failure (missing source file)
 
-**Settings in `.env`:**
+**Settings in [`.env`](../.env.example):**
 
 ```dotenv
 SOURCE_FILE_RETRIES=1               # normal: 3
@@ -125,7 +125,7 @@ error, and the message *"Downstream tasks did not run. PostgreSQL still has the 
 
 ## Test C: timeout (load runs longer than its limit)
 
-**Settings in `.env`:**
+**Settings in [`.env`](../.env.example):**
 
 ```dotenv
 LOAD_TIMEOUT_SECONDS=1   # normal: 600 (the load normally takes ~4 s, so 1 s forces a timeout)
@@ -173,7 +173,7 @@ What the logs confirm:
 
 ## Restore normal settings
 
-After testing, set these back in `.env`, then run `docker compose up -d`:
+After testing, set these back in [`.env`](../.env.example), then run `docker compose up -d`:
 
 ```dotenv
 ALERT_SLOW_LOAD_SECONDS=120

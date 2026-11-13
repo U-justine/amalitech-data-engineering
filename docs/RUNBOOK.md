@@ -1,7 +1,7 @@
 # Runbook — `flight_price_pipeline`
 
 This page is for the people who **run and support** the pipeline. It covers how to start it, what
-each alert means, and what to do when something goes wrong. For design details, see `REPORT.md`.
+each alert means, and what to do when something goes wrong. For design details, see [`REPORT.md`](REPORT.md).
 
 | | |
 |---|---|
@@ -54,8 +54,8 @@ flowchart LR
 
 ### First time
 
-1. Put the CSV in the [`data/`](../data/) folder, named `Flight_Price_Dataset_of_Bangladesh.csv`.
-2. `cp .env.example .env` and fill in the email settings (`SMTP_*`, `ALERT_EMAIL_TO`).
+1. Put the CSV in the [`data/`](../data/) folder, named [`Flight_Price_Dataset_of_Bangladesh.csv`](https://www.kaggle.com/datasets/mahatiratusher/flight-price-dataset-of-bangladesh).
+2. [`cp .env.example .env`](../.env.example) and fill in the email settings (`SMTP_*`, `ALERT_EMAIL_TO`).
    Step-by-step with screenshots: [`EMAIL_SETUP.md`](EMAIL_SETUP.md).
 3. `docker compose up -d`, then wait about a minute.
 4. Open [http://localhost:8080](http://localhost:8080) and log in. The DAG is already switched on (unpaused).
@@ -80,7 +80,7 @@ Scheduled runs use the defaults. Change them only for a manual run.
 | `max_reject_ratio` | `0.05` (5 %) | To accept a file with more bad rows **after you've checked them**. Don't raise it just to make a red run go green. |
 | `top_routes_limit` | `10` | How many routes count as "top routes". |
 | `force_full_reload` | `false` | Load the file even if it's the same as the last load (ignores the watermark). |
-| `send_success_email` | `ALERT_EMAIL_ON_SUCCESS` from `.env` | Turn it on or off for one manual run. |
+| `send_success_email` | `ALERT_EMAIL_ON_SUCCESS` from [`.env`](../.env.example) | Turn it on or off for one manual run. |
 
 ### Pause or stop
 
@@ -101,7 +101,7 @@ Scheduled runs use the defaults. Change them only for a manual run.
 | Task runs too long (load > 10 min, other tasks > 30 min) | Task is stopped and counts as a failed try | `TIMED OUT` email once retries run out |
 | Whole run takes > 1 hour | The run is marked failed (`dagrun_timeout`) and unfinished tasks stop | The run shows as failed in the UI. Check which task was still running. |
 
-You can change all of these numbers in `.env` (`TASK_RETRIES`, `RETRY_DELAY_SECONDS`,
+You can change all of these numbers in [`.env`](../.env.example) (`TASK_RETRIES`, `RETRY_DELAY_SECONDS`,
 `MAX_RETRY_DELAY_SECONDS`, `SOURCE_FILE_RETRIES`, `SOURCE_FILE_RETRY_DELAY_SECONDS`,
 `LOAD_TIMEOUT_SECONDS`, `TASK_TIMEOUT_SECONDS`, `DAGRUN_TIMEOUT_SECONDS`), then run `docker compose up -d`.
 
@@ -129,7 +129,7 @@ arrives, look there:
 | `FAILED: …load.verify_postgres_load` | PostgreSQL doesn't match MySQL after the load | **Check it**: the new data was committed but didn't pass the checks | Read the mismatch in the log. Re-run the whole DAG. If it fails again, contact the owner before anyone uses the KPIs. |
 | `SLOW TASK: …` | A task succeeded, but took longer than usual | Yes | Not urgent. Check whether the file got bigger or the database is busy. If it happens daily, raise the threshold or look into it. |
 | `SLOW RUN: …` | The whole run took more than 15 minutes | Yes | As above |
-| `SUCCESS: …` | The run finished. Sent when `ALERT_EMAIL_ON_SUCCESS=true` in `.env`, or `send_success_email` is on for a manual run | Yes | Nothing |
+| `SUCCESS: …` | The run finished. Sent when `ALERT_EMAIL_ON_SUCCESS=true` in [`.env`](../.env.example), or `send_success_email` is on for a manual run | Yes | Nothing |
 
 > **Golden rule:** a failed run never leaves half-loaded data in PostgreSQL. Dashboards keep showing the
 > last good run until a new run succeeds.
@@ -197,9 +197,9 @@ docker compose exec -w /opt/airflow/dags airflow-scheduler python -m flight_pipe
 
 1. Check [`data/alerts.log`](../data/alerts.log). If the alert is there, Airflow detected the problem and only the email failed.
 2. Search the task log for `Could not send alert email` or `email not configured`.
-3. Check `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL_TO`.
+3. Check [`.env`](../.env.example): `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_EMAIL_TO`.
    For Gmail, `SMTP_PASSWORD` must be an **App Password**, not your normal password.
-4. After editing `.env`, run `docker compose up -d` so the containers pick up the change.
+4. After editing [`.env`](../.env.example), run `docker compose up -d` so the containers pick up the change.
 
 ---
 
