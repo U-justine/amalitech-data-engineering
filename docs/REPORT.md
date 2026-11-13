@@ -65,6 +65,50 @@ flowchart LR
 The connections `mysql_staging` and `postgres_analytics` are defined as `AIRFLOW_CONN_*` environment
 variables, so the stack runs with no manual setup in the UI.
 
+### ETL and ELT: both are used
+
+The pipeline is a **hybrid**. Some steps follow ELT (load first, then transform inside a database) and
+some follow ETL (transform first, then load).
+
+**Where ELT is used, and how:**
+
+* **Raw data is loaded before any cleaning.** `ingest_csv_to_mysql` in
+  [`ingestion.py`](../dags/flight_pipeline/ingestion.py) loads the CSV as it is into
+  `stg_flight_prices_raw` (MySQL). No validation or calculation happens before this step
+  (task `extract.extract_csv_to_mysql`).
+* **Every transform starts from the staging database, not from the CSV.** The validation, transform and
+  KPI tasks read their input from MySQL tables and write their results back to MySQL
+  (`stg_flight_prices_validated`, `dq_issues`, `stg_flight_prices_enriched`, `kpi_*`). See
+  `validate_stage`, `transform_stage` and `kpi_stage` in [`stages.py`](../dags/flight_pipeline/stages.py).
+* **SQL views transform data inside PostgreSQL.** `analytics.v_top_routes` (only the top routes, in rank
+  order) and `analytics.v_peak_vs_offpeak` (only the Peak vs Non-Peak rows) in
+  [`schema.py`](../dags/flight_pipeline/schema.py) run as SQL on data that is already loaded.
+
+**Where ETL is used, and how:**
+
+* **The main transform runs in Python, outside the database.** The rows are read from MySQL into pandas.
+  [`validation.py`](../dags/flight_pipeline/validation.py) applies the data quality rules,
+  [`transformation.py`](../dags/flight_pipeline/transformation.py) calculates Total Fare and adds season,
+  route and booking lead time, and [`kpis.py`](../dags/flight_pipeline/kpis.py) computes the 4 KPIs
+  (tasks `transform.validate_data`, `transform.transform_data` and `transform.kpis.*`).
+* **Only transformed data reaches PostgreSQL.** `load_to_postgres` in
+  [`stages.py`](../dags/flight_pipeline/stages.py) loads the clean `fact_flight_prices` and the KPI
+  tables. Raw or rejected rows never reach the analytics database (task `load.load_to_postgres`).
+
+**Why this mix:**
+
+* Keeping the raw data in staging (ELT) means the original file is always available to re-check or
+  re-run, and proves what came in.
+* Python (ETL) makes it easy to record every problem per row, with its original value, in `dq_issues`.
+  This is much harder in plain SQL.
+* Loading only clean data into PostgreSQL (ETL) keeps half-checked data away from analysts.
+* The views (ELT) give analysts simple ready-made answers without storing extra copies.
+
+**Moving to full ELT** would mean rewriting the transform and KPI steps as SQL (or dbt models) that run
+inside the database, for example Total Fare as `INSERT INTO stg_flight_prices_enriched SELECT …,
+base_fare + tax_surcharge AS total_fare …` and the KPIs as `GROUP BY` queries, with Airflow only
+triggering them.
+
 ---
 
 ## 2. DAG and task description
@@ -96,10 +140,10 @@ flowchart LR
 **Dependencies** are written out in one block at the end of the DAG file:
 
 ```python
-file_info >> staging_ddl >> extracted                 # extract
-transformed >> kpis                                    # transform (4 KPI tasks in parallel)
-analytics_ddl >> loaded >> checks >> report_info >> done   # load
-extract >> transform >> load                           # groups
+file_info >> wm_check >> staging_ddl >> extracted                           # extract
+transformed >> kpis                                                        # transform (4 KPI tasks in parallel)
+analytics_ddl >> loaded >> checks >> wm_info >> report_info >> done        # load
+extract >> transform >> load                                               # groups
 ```
 
 TaskFlow XComs add the data dependencies too: for example, `validate_data` receives the extract
@@ -126,6 +170,7 @@ summary, and `load_to_postgres` receives the validation summary and the KPI resu
 | `max_reject_ratio` | number 0–1 | 0.05 | `validate_data` quality gate |
 | `top_routes_limit` | integer 1–100 | 10 | `kpis.kpi_popular_routes` (`is_top_route`) |
 | `send_success_email` | boolean | false | `notify_success` |
+| `force_full_reload` | boolean | false | `check_watermark`: load the file even if it hasn't changed |
 
 Scheduled runs use the defaults. Tested: a manual run with `top_routes_limit=5` and
 `send_success_email=true` flagged 5 top routes and sent the summary email.
@@ -202,7 +247,8 @@ and the run ended **Success** after **4.4 seconds**, instead of reloading 57,000
 | `kpi_*` (4) | KPI results |
 
 **PostgreSQL (`analytics` schema):** `fact_flight_prices` (indexed on airline, route and season),
-the 4 `kpi_*` tables, `pipeline_run_log`, and the views `v_top_routes` and `v_peak_vs_offpeak`.
+the 4 `kpi_*` tables, `pipeline_run_log`, `pipeline_watermark`, and the views `v_top_routes` and
+`v_peak_vs_offpeak`.
 
 ---
 
@@ -252,7 +298,14 @@ String fields are also trimmed and repeated whitespace is collapsed.
 A small number of bad rows is quarantined and the run continues. A file that is mostly bad stops the
 pipeline before it reaches analytics, and PostgreSQL keeps the last good load.
 
-**Example run (synthetic test file, 57,057 rows):** 56,827 valid, 230 rejected (0.40 %), 633 findings.
+**Real Kaggle file (57,000 rows):** 57,000 valid, **0 rejected**, and 2,522 `total_fare_mismatch`
+warnings. In all 2,522 rows the total is exactly 1.2 × (base + tax), and every one was booked 1–4 days
+before departure, which looks like a 20 % last-minute surcharge. Following the brief's formula, these
+totals are recalculated as Base + Tax, marked with `total_fare_recalculated = TRUE`, and the original
+value is kept in `dq_issues`.
+
+**Test run (synthetic file, 57,057 rows, used to prove the rules work):** 56,827 valid, 230 rejected
+(0.40 %), 633 findings.
 
 | Rule | Findings |
 |---|---|
@@ -275,7 +328,7 @@ pipeline before it reaches analytics, and PostgreSQL keeps the last good load.
 | Column | Logic |
 |---|---|
 | `total_fare` | **`Total Fare = Base Fare + Tax & Surcharge`** when the source value is missing or differs from the sum by more than 1 BDT. Otherwise the source value is kept. |
-| `total_fare_recalculated` | TRUE if the value above was recalculated (113 rows in the test run) |
+| `total_fare_recalculated` | TRUE if the value above was recalculated (2,522 rows in the real Kaggle file, 113 in the synthetic test run) |
 | `season` | From the dataset's `Seasonality` column, normalised (e.g. `eid-ul-fitr` → `Eid`, `winter` → `Winter Holidays`). If it is blank, derived from the departure date: Eid window = 7 days before to 3 days after each Bangladesh Eid date (2023–2026); Winter Holidays = 10 Dec–15 Jan; otherwise Regular. |
 | `season_source` | `dataset`, `derived` or `default`, so the analysis can tell which seasons were inferred |
 | `is_peak_season` | TRUE for any season other than `Regular` (Eid, Hajj, Winter Holidays) |
@@ -294,7 +347,16 @@ All KPIs are computed from valid, enriched rows only. Each row is one booking.
 | **Booking Count by Airline** | `kpi_booking_count_by_airline` | Total bookings per airline | `COUNT(*) GROUP BY airline`, plus `booking_share_pct` (share of all bookings) and `booking_rank` (ties share a rank). |
 | **Most Popular Routes** | `kpi_popular_routes` | Source→destination pairs ranked by booking count | `COUNT(*) GROUP BY source, destination`, ranked descending. Ties are broken by average fare, then route name, so ranks don't change between runs. All routes are stored; `is_top_route` marks the top 10 (`v_top_routes`). |
 
-**Example output (synthetic data, so the values are illustrative only):**
+**Results on the real Kaggle file** (run `manual__run_all_2026-11-12T10-23-15`):
+
+* **Seasonal variation:** peak seasons average **81,092.55 BDT** vs **67,337.33 BDT** non-peak, so
+  peak fares are **20.43 % higher**.
+* **Highest average fare:** Turkish Airlines, 74,738.63 BDT.
+* **Most popular routes:** RJH-SIN (417 bookings), DAC-DXB (413 bookings).
+
+The full results, with a chart per KPI, are in [`data/reports/kpi_report.html`](../data/reports/kpi_report.html).
+
+**Example output from the synthetic test file (values illustrative only):**
 
 | Season | Bookings | Avg fare (BDT) | vs Regular |
 |---|---|---|---|
@@ -319,7 +381,7 @@ All KPIs are computed from valid, enriched rows only. Each row is one booking.
   2. Data is written with `COPY FROM STDIN`, which streams each table in a single round trip and is much
      faster than row-by-row INSERTs.
   3. In the test run, ~57k fact rows plus the KPI tables loaded in about 2 seconds, including the MySQL read.
-* **Verification.** `verify_postgres_load` checks the result after commit (Section 2, task 12).
+* **Verification.** `verify_postgres_load` checks the result after commit (Section 2.2).
 
 ---
 
@@ -413,11 +475,14 @@ the scheduled jobs around it (daily KPI rebuilds, data quality checks, backfills
 
 ## 9. Testing performed
 
-* **Unit tests** (24 tests: [`tests/test_pipeline_logic.py`](../tests/test_pipeline_logic.py) and [`tests/test_alerts.py`](../tests/test_alerts.py)): header normalisation, type-cast failure
+* **Unit tests** (31 tests: [`tests/test_pipeline_logic.py`](../tests/test_pipeline_logic.py), [`tests/test_alerts.py`](../tests/test_alerts.py), [`tests/test_report.py`](../tests/test_report.py) and [`tests/test_watermark.py`](../tests/test_watermark.py)): header normalisation, type-cast failure
   counting, the required-column check, every main validation rule, the quality gate, Total Fare
-  recalculation, season normalisation and derivation, all four KPIs, and the alert callbacks
-  (failure, timeout, slow task, slow run, and SMTP errors not breaking the task). They pass under pandas 2.1.4
-  (the version in the Airflow 2.10.5 image) and pandas 3.0.
+  recalculation, season normalisation and derivation, all four KPIs, the alert callbacks
+  (failure, timeout, slow task, slow run, and SMTP errors not breaking the task), the KPI report page,
+  and the watermark decision (same file → skip; changed, first run or forced → load). All 31 pass.
+* **Latest run on the real Kaggle file, Airflow 3.1.3** (`manual__run_all_2026-11-12T10-23-15`): 57,000
+  rows in, 57,000 valid and loaded, 0 rejected, post-load reconciliation passed, watermark saved. Running
+  it again with the same file was skipped by the watermark (Section 2.4).
 * **End-to-end runs** with Airflow 2.10.5 against MySQL 8 and PostgreSQL 16 on a 57,057-row synthetic file:
   * Full run: all 12 tasks succeeded in about 24 s. Post-load reconciliation passed.
   * Re-run: idempotent (56,827 fact rows, no duplicates, `pipeline_run_log` has one row per run).
@@ -435,12 +500,13 @@ the scheduled jobs around it (daily KPI rebuilds, data quality checks, backfills
     routes and sent the SUCCESS summary email.
 
 > The synthetic file ([`scripts/generate_sample_data.py`](../scripts/generate_sample_data.py)) uses the Kaggle header and value ranges and
-> ~1 % injected errors. It exists only to test the pipeline. For the real analysis, replace it with the
-> Kaggle CSV. No code changes are needed.
+> ~1 % injected errors. It exists only to test the validation rules. The real analysis uses the
+> Kaggle CSV. No code changes are needed to switch between them.
 
 ## 10. Possible extensions
 
-* Incremental loads keyed on a file checksum (skip a run if the file hasn't changed).
+* Full ELT: move the transform and KPI logic into SQL or dbt models that run inside the database.
+* Incremental loads (only new rows) with a lookback window, if the data grows too large to reload daily.
 * Data contracts with Great Expectations or Soda.
 * Send the same alerts to Slack or Microsoft Teams as well as email (the callback functions are the only place to change).
 * A dashboard (Metabase or Superset) on top of the `analytics` views.
