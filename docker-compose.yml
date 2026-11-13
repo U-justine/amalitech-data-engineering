@@ -95,7 +95,7 @@ services:
     volumes:
       - analytics-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${ANALYTICS_PG_USER}"]
+      test: ["CMD", "pg_isready", "-U", "${ANALYTICS_PG_USER}", "-d", "${ANALYTICS_PG_DB}"]
       interval: 5s
       retries: 10
 
