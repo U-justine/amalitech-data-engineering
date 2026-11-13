@@ -8,8 +8,8 @@ PostgreSQL for analysis.
 CSV ──► MySQL staging ──► validate ──► transform ──► 4 KPIs (parallel) ──► PostgreSQL analytics ──► verify
 ```
 
-* **Getting the data?** [`docs/KAGGLE_SETUP.md`](docs/KAGGLE_SETUP.md): Kaggle token (`kaggle.json`) and dataset download.
-* **Setting up from scratch** (Docker, Python venv, **Kaggle token and dataset download**, `.env`)? See [Full setup](#full-setup-new-computer-or-new-user) below.
+* **Getting the data?** [`docs/KAGGLE_SETUP.md`](docs/KAGGLE_SETUP.md): Kaggle token ([`kaggle.json`](docs/KAGGLE_SETUP.md)) and dataset download.
+* **Setting up from scratch** (Docker, Python venv, **Kaggle token and dataset download**, [`.env`](.env.example))? See [Full setup](#full-setup-new-computer-or-new-user) below.
 * **First time running it?** Follow [`docs/HOW_TO_RUN.md`](docs/HOW_TO_RUN.md): start, trigger, watch, check results, stop.
 * **Running or supporting the pipeline?** Read [`docs/RUNBOOK.md`](docs/RUNBOOK.md): how to run it, what each alert means, and what to do.
 * **Turning on email alerts?** Follow [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md), a step-by-step Gmail setup with screenshots.
@@ -59,16 +59,16 @@ exponential backoff, and **email alerts** with a fallback log file ([`data/alert
 
 ## Quick start
 
-**One command** (after the setup below): `powershell -ExecutionPolicy Bypass -File scripts\run_all.ps1`
+**One command** (after the setup below): [`powershell -ExecutionPolicy Bypass -File scripts\run_all.ps1`](scripts/run_all.ps1)
 starts everything, runs the pipeline, checks the results and opens the KPI report. See
 [`docs/HOW_TO_RUN.md`](docs/HOW_TO_RUN.md#run-everything-with-one-command).
 
 
-1. **Get the data.** `python scripts/download_data.py` (needs a Kaggle token, see [Full setup, step 3](#3-set-up-kaggle-and-download-the-dataset)), or download
-   `Flight_Price_Dataset_of_Bangladesh.csv` from Kaggle by hand and place it in [`data/`](data/).
-   (No Kaggle account handy? `python scripts/generate_sample_data.py` writes a synthetic file with the
+1. **Get the data.** [`python scripts/download_data.py`](scripts/download_data.py) (needs a Kaggle token, see [Full setup, step 3](#3-set-up-kaggle-and-download-the-dataset)), or download
+   [`Flight_Price_Dataset_of_Bangladesh.csv`](https://www.kaggle.com/datasets/mahatiratusher/flight-price-dataset-of-bangladesh) from Kaggle by hand and place it in [`data/`](data/).
+   (No Kaggle account handy? [`python scripts/generate_sample_data.py`](scripts/generate_sample_data.py) writes a synthetic file with the
    same header and ~1 % deliberately dirty rows.)
-2. **Configure.** `cp .env.example .env` (on Linux also set `AIRFLOW_UID=$(id -u)`), then fill in the
+2. **Configure.** [`cp .env.example .env`](.env.example) (on Linux also set `AIRFLOW_UID=$(id -u)`), then fill in the
    `SMTP_*` and `ALERT_EMAIL_TO` values so alerts reach your inbox (Gmail needs an App Password, see [`.env.example`](.env.example)).
 3. **Start the stack.**
    ```bash
@@ -114,7 +114,11 @@ docker compose exec -w /opt/airflow/dags airflow-scheduler python -m flight_pipe
 A successful run within the thresholds sends no email. If SMTP isn't configured, alerts are written to
 the task log instead and the pipeline still runs. Runs on Airflow 3.1.3.
 
-![Example alert emails](docs/img/alert_emails.png)
+Real alert emails received in Gmail during the tests (more in [`docs/EMAIL_ALERT_TESTS.md`](docs/EMAIL_ALERT_TESTS.md)):
+
+![FAILED alert email](docs/img/email_tests/B2_failed.png)
+
+![SLOW TASK alert email](docs/img/email_tests/A1_slow_task.png)
 
 This is a **batch** pipeline: Airflow schedules and monitors finite jobs (here, once a day). It is not
 a streaming engine; see the report, section 6.
@@ -126,20 +130,24 @@ Host ports: MySQL `3307`, analytics Postgres `5433`, Airflow `8080`.
 ## Watermark: skip the run if the file didn't change
 
 After a run has loaded and checked everything, the pipeline saves the **md5 checksum of the CSV** in
-`analytics.pipeline_watermark`. The next run (`extract.check_watermark`) compares the file in `data/` with it:
+`analytics.pipeline_watermark`. The next run (`extract.check_watermark`) compares the file in [`data/`](data/) with it:
 
 | Situation | What happens |
 |---|---|
 | Same file as the last good load | The rest of the run is **skipped** (pink in Airflow). The run still ends green, nothing is reloaded. |
 | File changed | Full run, then the watermark is updated |
 | First run (no watermark yet) | Full run |
-| `force_full_reload = true` (param), or `run_all.ps1 -Force` | Full run even if the file is the same, for example after changing the code |
+| `force_full_reload = true` (param), or [`run_all.ps1 -Force`](scripts/run_all.ps1) | Full run even if the file is the same, for example after changing the code |
 
 The watermark is saved only after `verify_postgres_load` has passed, so a failed run never marks a file as done.
 
 ```sql
 SELECT * FROM analytics.pipeline_watermark;
 ```
+
+Example: the same file triggered again. Only `check_source_file` and `check_watermark` ran, everything else was skipped, and the run ended green in 4.4 seconds (more in [`docs/REPORT.md`](docs/REPORT.md), section 2.4).
+
+![Run skipped by the watermark](docs/img/watermark_skipped_run.png)
 
 ## Run parameters and retry policy
 
@@ -186,19 +194,19 @@ If PowerShell says *running scripts is disabled*, first run
 
 > **Full guide:** [`docs/KAGGLE_SETUP.md`](docs/KAGGLE_SETUP.md) covers two options:
 > **Option 1, download from the Kaggle website** (no token needed), or **Option 2, the Kaggle API**
-> with `kaggle.json`, step by step with screenshots, plus slow downloads and troubleshooting. Short
+> with [`kaggle.json`](docs/KAGGLE_SETUP.md), step by step with screenshots, plus slow downloads and troubleshooting. Short
 > version of Option 2 below.
 
 The data is the Kaggle dataset **Flight Price Dataset of Bangladesh**
 ([`mahatiratusher/flight-price-dataset-of-bangladesh`](https://www.kaggle.com/datasets/mahatiratusher/flight-price-dataset-of-bangladesh), about 57,000 rows).
 
-**3a. Create your Kaggle API token (`kaggle.json`)**
+**3a. Create your Kaggle API token ([`kaggle.json`](docs/KAGGLE_SETUP.md))**
 
 1. Sign in (or sign up for free) at [https://www.kaggle.com](https://www.kaggle.com).
 2. Click your **profile picture** → **Settings** → **API Tokens** tab → scroll to **Legacy API Credentials** → **Create Legacy API Key**.
-3. Your browser downloads **`kaggle.json`**. It contains your Kaggle username and a secret key.
+3. Your browser downloads **[`kaggle.json`](docs/KAGGLE_SETUP.md)**. It contains your Kaggle username and a secret key.
 
-**3b. Put `kaggle.json` where the Kaggle tool can find it.** Choose one:
+**3b. Put [`kaggle.json`](docs/KAGGLE_SETUP.md) where the Kaggle tool can find it.** Choose one:
 
 * **Recommended:** your user folder, so it works for every project:
   ```powershell
@@ -209,7 +217,7 @@ The data is the Kaggle dataset **Flight Price Dataset of Bangladesh**
   ```powershell
   $env:KAGGLE_CONFIG_DIR = $PWD
   ```
-  `kaggle.json` is listed in [`.gitignore`](.gitignore), so it is never committed.
+  [`kaggle.json`](docs/KAGGLE_SETUP.md) is listed in [`.gitignore`](.gitignore), so it is never committed.
 
 **3c. Download the dataset**
 
@@ -217,7 +225,7 @@ The data is the Kaggle dataset **Flight Price Dataset of Bangladesh**
 python scripts/download_data.py
 ```
 
-The script downloads the dataset into [`data\`](data/), names it `Flight_Price_Dataset_of_Bangladesh.csv`,
+The script downloads the dataset into [`data\`](data/), names it [`Flight_Price_Dataset_of_Bangladesh.csv`](https://www.kaggle.com/datasets/mahatiratusher/flight-price-dataset-of-bangladesh),
 checks the required columns, and prints the row count. Without the script, you can run:
 
 ```powershell
@@ -228,21 +236,21 @@ Or download it by hand: open the dataset page on Kaggle → **Download** → unz
 
 | Kaggle problem | Fix |
 |---|---|
-| `No module named 'six'` | `pip install six` (or `pip install -r requirements-dev.txt`) |
-| `Could not find kaggle.json` / `401 Unauthorized` | Put `kaggle.json` in `%USERPROFILE%\.kaggle\`, or set `$env:KAGGLE_CONFIG_DIR`. Creating a new legacy key expires the old one. |
+| `No module named 'six'` | `pip install six` (or [`pip install -r requirements-dev.txt`](requirements-dev.txt)) |
+| [`Could not find kaggle.json`](docs/KAGGLE_SETUP.md) / `401 Unauthorized` | Put [`kaggle.json`](docs/KAGGLE_SETUP.md) in `%USERPROFILE%\.kaggle\`, or set `$env:KAGGLE_CONFIG_DIR`. Creating a new legacy key expires the old one. |
 | `403 Forbidden` on download | Open the dataset page in the browser once while logged in, then try again |
 | `kaggle` not recognised | Activate the venv first (`.\.venv\Scripts\Activate.ps1`) |
 
 > [`scripts/generate_sample_data.py`](scripts/generate_sample_data.py) only makes a **fake** test file with the same columns. Don't use it
 > for the real analysis.
 
-### 4. Create `.env`
+### 4. Create [`.env`](.env.example)
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Open `.env` in VS Code and set:
+Open [`.env`](.env.example) in VS Code and set:
 
 * `SMTP_PASSWORD`: your Gmail App Password, with no spaces. See [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md).
 * `SMTP_USER`, `SMTP_FROM`, `ALERT_EMAIL_TO`: the Gmail address that sends and receives the alerts.
@@ -263,8 +271,8 @@ Open [http://localhost:8080](http://localhost:8080) (`admin` / `admin`) to watch
 
 ### What stays private
 
-[`.gitignore`](.gitignore) excludes `.env` (passwords), `kaggle.json` (Kaggle key), `.venv/`, `data/*.csv` and `logs/`.
-**Never share** `.env`, `kaggle.json` or your Gmail App Password. Each person creates their own.
+[`.gitignore`](.gitignore) excludes [`.env`](.env.example) (passwords), [`kaggle.json`](docs/KAGGLE_SETUP.md) (Kaggle key), `.venv/`, `data/*.csv` and `logs/`.
+**Never share** [`.env`](.env.example), [`kaggle.json`](docs/KAGGLE_SETUP.md) or your Gmail App Password. Each person creates their own.
 
 ## Tests
 

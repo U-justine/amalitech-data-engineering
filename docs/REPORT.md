@@ -136,7 +136,7 @@ Scheduled runs use the defaults. Tested: a manual run with `top_routes_limit=5` 
 |---|---|---|---|
 | extract | `check_source_file` | Checks that the CSV exists and is not empty, and records its size and MD5 checksum. A missing or empty file raises a *retryable* error, because the file may arrive late. | file info |
 | extract | `check_watermark` | Short-circuit task: compares the file's MD5 with the last successful load in `analytics.pipeline_watermark`. Same file → all downstream tasks are skipped and the run ends green; changed file, first run or `force_full_reload` → continue. | run / skip |
-| extract | `create_staging_tables` | Idempotent `CREATE TABLE IF NOT EXISTS` for all MySQL tables, generated from the schema in `config.py`. | MySQL tables |
+| extract | `create_staging_tables` | Idempotent `CREATE TABLE IF NOT EXISTS` for all MySQL tables, generated from the schema in [`config.py`](../dags/flight_pipeline/config.py). | MySQL tables |
 | extract | `extract_csv_to_mysql` | Reads the CSV as text, normalises the headers, casts each column to its type, and bulk-inserts into `stg_flight_prices_raw` in batches of 5,000. Writes an `ingestion_audit` row and **verifies that the MySQL row count equals the file row count**. | raw staging |
 | transform | `validate_data` | Schema check, then row-level checks (Section 3). Writes `stg_flight_prices_validated` and `dq_issues`. **Quality gate:** fails if there are no rows or the rejected share is above `max_reject_ratio`. | validated rows + issues |
 | transform | `transform_data` | Valid rows only. Recalculates Total Fare where needed, adds season, peak flag, route, calendar fields and booking lead-time bucket. | `stg_flight_prices_enriched` |
@@ -145,7 +145,7 @@ Scheduled runs use the defaults. Tested: a manual run with `top_routes_limit=5` 
 | load | `load_to_postgres` | Reads the enriched and KPI tables from MySQL, then **in one PostgreSQL transaction** truncates the targets, `COPY`s each table in, and upserts `pipeline_run_log`. | analytics tables |
 | load | `verify_postgres_load` | Reconciles MySQL against PostgreSQL: row counts per table, Σ bookings per airline = fact rows, Σ bookings per route = fact rows, Σ `total_fare` equal in both databases, and `total = base + tax` on every row. | verification report |
 | load | `update_watermark` | Upserts the file's MD5 into `analytics.pipeline_watermark`, only after `verify_postgres_load` passed. | watermark |
-| load | `build_kpi_report` | Reads the KPI tables from PostgreSQL and writes `data/reports/kpi_report.html`: a self-contained page (inline SVG charts, no internet needed) with headline numbers, a chart per KPI, hover details, light and dark mode, and a table view. The file is written to a temporary name and then renamed, so it's never half-written. | KPI report |
+| load | `build_kpi_report` | Reads the KPI tables from PostgreSQL and writes [`data/reports/kpi_report.html`](../data/reports/kpi_report.html): a self-contained page (inline SVG charts, no internet needed) with headline numbers, a chart per KPI, hover details, light and dark mode, and a table view. The file is written to a temporary name and then renamed, so it's never half-written. | KPI report |
 | load | `notify_success` | Builds the run summary (rows in file, valid, rejected, loaded, Σ fare). Logs it, and emails it when `send_success_email` is on. Also runs the SLOW RUN check. | summary |
 
 ### 2.3 Retry policy
@@ -163,10 +163,30 @@ Scheduled runs use the defaults. Tested: a manual run with `top_routes_limit=5` 
 failure** (`on_failure_callback`), a `FAILED` or `TIMED OUT` email is sent and a line is written to
 [`data/alerts.log`](../data/alerts.log). The log is the fallback record when email can't be delivered (Section 6).
 
-All values can be changed in `.env` (`TASK_RETRIES`, `RETRY_DELAY_SECONDS`, `MAX_RETRY_DELAY_SECONDS`,
+All values can be changed in [`.env`](../.env.example) (`TASK_RETRIES`, `RETRY_DELAY_SECONDS`, `MAX_RETRY_DELAY_SECONDS`,
 `SOURCE_FILE_RETRIES`, `SOURCE_FILE_RETRY_DELAY_SECONDS`, `NOTIFY_RETRIES`, `DAGRUN_TIMEOUT_SECONDS`).
 
 What to do when an alert arrives is described in **[`docs/RUNBOOK.md`](RUNBOOK.md)**, the operator guide.
+
+### 2.4 Watermark: skipping a file that was already loaded
+
+The pipeline keeps a **watermark**: the MD5 checksum (fingerprint) of the last CSV that was loaded and
+verified, saved in `analytics.pipeline_watermark` by
+[`watermark.py`](../dags/flight_pipeline/watermark.py).
+
+* `extract.check_watermark` is a `@task.short_circuit`. It compares the MD5 of today's file with the
+  saved one. If they are the same, it returns `False` and Airflow **skips** every task after it.
+* A skipped run is still **green**. Nothing is wrong, there is just nothing new to load.
+* `load.update_watermark` saves the new MD5 only after `verify_postgres_load` has passed, so a
+  failed run never moves the watermark and the next run tries again.
+* To load anyway: switch on the `force_full_reload` param in the Trigger form, or run
+  [`scripts\run_all.ps1 -Force`](../scripts/run_all.ps1).
+
+**Example:** run `manual__2026-11-13T12:32:06+00:00`, triggered from the UI with the same CSV as the
+last load. `check_source_file` and `check_watermark` succeeded, every later task was skipped (pink),
+and the run ended **Success** after **4.4 seconds**, instead of reloading 57,000 rows.
+
+![Run skipped by the watermark](img/watermark_skipped_run.png)
 
 ### Data model
 
@@ -317,7 +337,7 @@ All KPIs are computed from valid, enriched rows only. Each row is one booking.
 
 A normal run sends **no email**. Normal timings on ~57k rows are about 5 s for ingestion and validation,
 2 s for the PostgreSQL load and ~25 s for the whole run, so the thresholds leave plenty of room before
-warning. All thresholds can be changed in `.env` without touching code.
+warning. All thresholds can be changed in [`.env`](../.env.example) without touching code.
 
 There are two levels on purpose. A **slow** load is an early warning (the data is still correct, but
 something such as database load or file growth needs attention). A **timed-out** load is stopped, so
@@ -325,8 +345,8 @@ a stuck task can't block the next day's run (`max_active_runs=1`).
 
 ### 6.2 How the email is sent
 
-* `alerts.py` sends HTML email with Python's `smtplib` (STARTTLS on port 587 or SSL on 465). The SMTP
-  server, login and recipients come from environment variables in `.env` (`SMTP_HOST`, `SMTP_PORT`,
+* [`alerts.py`](../dags/flight_pipeline/alerts.py) sends HTML email with Python's `smtplib` (STARTTLS on port 587 or SSL on 465). The SMTP
+  server, login and recipients come from environment variables in [`.env`](../.env.example) (`SMTP_HOST`, `SMTP_PORT`,
   `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `ALERT_EMAIL_TO`). For Gmail an App Password is required.
 * It doesn't depend on Airflow's `[smtp]` settings or `email_on_failure`, which changed between Airflow 2
   and 3. The same code runs on both.
@@ -338,7 +358,11 @@ a stuck task can't block the next day's run (`max_active_runs=1`).
 * Each email has the DAG, task, run ID, try number, a link to the task log, the duration, and the error
   or the threshold that was crossed:
 
-![Example alert emails](img/alert_emails.png)
+![FAILED alert email](img/email_tests/B2_failed.png)
+
+![SLOW TASK alert email](img/email_tests/A1_slow_task.png)
+
+These are real emails received in Gmail during the tests. The SLOW TASK threshold was set to 0s for the test, so a normal 4-second load triggered it. All 6 test cases are in [`EMAIL_ALERT_TESTS.md`](EMAIL_ALERT_TESTS.md).
 
 ---
 
@@ -380,9 +404,9 @@ the scheduled jobs around it (daily KPI rebuilds, data quality checks, backfills
 | 9 | **Retries on bad data waste time.** With `retries=3`, a quality failure would run 4 times before failing. | `DataQualityError` is converted to `AirflowFailException`, which fails immediately without retrying. Real transient errors still get retried. |
 | 10 | **Keeping analytics consistent during the load.** | Single-transaction `TRUNCATE` + `COPY` (Section 5), followed by an independent reconciliation task. |
 | 11 | **Detecting a "slow" load, not just a failed one.** Airflow 3 removed SLA misses, and `execution_timeout` alone only catches loads that are stuck. | Two levels: a hard `execution_timeout` (stops the task, rolls back, sends TIMED OUT) and a softer duration check in `on_success_callback` (sends SLOW TASK / SLOW RUN). Each task's start time is recorded with an `on_execute_callback`, because `ti.start_date` is not always filled in (for example in `airflow dags test`). |
-| 12 | **Airflow 2 and 3 differences.** Import paths moved (`airflow.sdk`), Airflow 3 reads `.airflowignore` as glob patterns instead of regex, and it doesn't always put the [`dags`](../dags/) folder on Python's import path. Airflow 3 also didn't always pass the exception to the failure callback. | The DAG tries the Airflow 3 imports first and falls back to Airflow 2. `.airflowignore` uses `flight_pipeline/*`, which works in both syntaxes. The DAG adds its own folder to `sys.path`. Timeouts are recognised from the exception type *or* from run time ≥ the time limit. |
-| 13 | **Email delivery must not become a new point of failure.** | Alerts are sent with `smtplib`, settings come from `.env`, and every error inside the alert code is caught and logged, never raised. |
-| 14 | **Retrying the right things.** A blanket "retry 3 times" would retry bad data pointlessly, and would fail at once for a file that is only a few minutes late. | A per-task retry policy (2.3): exponential backoff for database tasks, a fixed 5-minute wait for the source file, and no retries for data-quality failures. Retries go to `alerts.log` and the final failure is emailed. |
+| 12 | **Airflow 2 and 3 differences.** Import paths moved (`airflow.sdk`), Airflow 3 reads [`.airflowignore`](../dags/.airflowignore) as glob patterns instead of regex, and it doesn't always put the [`dags`](../dags/) folder on Python's import path. Airflow 3 also didn't always pass the exception to the failure callback. | The DAG tries the Airflow 3 imports first and falls back to Airflow 2. [`.airflowignore`](../dags/.airflowignore) uses `flight_pipeline/*`, which works in both syntaxes. The DAG adds its own folder to `sys.path`. Timeouts are recognised from the exception type *or* from run time ≥ the time limit. |
+| 13 | **Email delivery must not become a new point of failure.** | Alerts are sent with `smtplib`, settings come from [`.env`](../.env.example), and every error inside the alert code is caught and logged, never raised. |
+| 14 | **Retrying the right things.** A blanket "retry 3 times" would retry bad data pointlessly, and would fail at once for a file that is only a few minutes late. | A per-task retry policy (2.3): exponential backoff for database tasks, a fixed 5-minute wait for the source file, and no retries for data-quality failures. Retries go to [`alerts.log`](../data/alerts.log) and the final failure is emailed. |
 | 15 | **Task IDs changed when tasks were grouped.** Inside TaskGroups the IDs become `load.load_to_postgres`, so the slow-task thresholds stopped matching. Long email subjects were also being wrapped onto two lines. | Thresholds are matched on the task name without the group prefix (`_short_task_id`). Emails use an SMTP policy with long header lines, so the subject stays on one line. |
 
 ---
@@ -404,9 +428,9 @@ the scheduled jobs around it (daily KPI rebuilds, data quality checks, backfills
     `TIMED OUT: load_to_postgres` (PostgreSQL still had 56,827 rows afterwards); thresholds set low →
     `SLOW TASK: load_to_postgres` and `SLOW RUN`.
   * **Retry policy**, on both Airflow versions: file arriving 12 s late → `check_source_file` retried
-    (RETRYING lines in `alerts.log`), then the whole run succeeded; file never arriving → 2 retries,
-    (retries lowered for the test), then a `FAILED` email plus a FAILED line in `alerts.log`; bad data → failed on the first try with no
-    retries; mail server down → the failure was still recorded in `alerts.log`.
+    (RETRYING lines in [`alerts.log`](../data/alerts.log)), then the whole run succeeded; file never arriving → 2 retries,
+    (retries lowered for the test), then a `FAILED` email plus a FAILED line in [`alerts.log`](../data/alerts.log); bad data → failed on the first try with no
+    retries; mail server down → the failure was still recorded in [`alerts.log`](../data/alerts.log).
   * **Params:** a manual run with `{"top_routes_limit": 5, "send_success_email": true}` flagged 5 top
     routes and sent the SUCCESS summary email.
 
