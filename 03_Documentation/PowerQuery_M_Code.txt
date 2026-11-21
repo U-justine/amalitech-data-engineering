@@ -1,0 +1,171 @@
+DARE CAREERS — POWER QUERY (M) CODE
+====================================
+All queries read from one parameter: FolderPath (Text) = full path to the "Dare Careers Data" folder, ending with "\".
+Query order matters: Attendance and Status first, because Learners, Assessments, Participation, Weeks and Months use them.
+Status has "Enable load" switched off (helper query only).
+
+
+----------------------------------------------------------------
+1. Attendance  (7,000 rows — one per learner per Zoom session)
+----------------------------------------------------------------
+let
+    Files = Table.SelectRows(Folder.Files(FolderPath), each Text.Contains([Folder Path], "Zoom Attendance") and [Extension] = ".csv"),
+    AddTable = Table.AddColumn(Files, "T", each
+        let
+            csv = Table.PromoteHeaders(Csv.Document([Content], [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]), [PromoteAllScalars = true]),
+            weekFolder = Text.AfterDelimiter(Text.TrimEnd([Folder Path], "\"), "\", {0, RelativePosition.FromEnd}),
+            track = let f = Text.BeforeDelimiter(Text.Middle([Folder Path], Text.Length(FolderPath)), "\") in if Text.Contains(f, "PowerBI") then "Power BI" else if Text.Contains(f, "Cloud") then "AWS Cloud" else Text.Trim(Text.Replace(f, "Training", "")),
+            dt = Date.FromText(Text.BeforeDelimiter([Name], "."), [Format = "dd-MMM-yyyy", Culture = "en-US"]),
+            wk = Number.From(Text.Replace(weekFolder, "Week ", "")),
+            withCols = Table.AddColumn(Table.AddColumn(Table.AddColumn(csv, "Track", each track), "Date", each dt), "Week", each wk)
+        in
+            Table.SelectColumns(withCols, {"Name", "Email", "Duration", "Track", "Date", "Week"})),
+    Combined = Table.Combine(AddTable[T]),
+    // Duration is "66" (minutes) for AWS Cloud and "1:46:00" for Power BI -> convert both to minutes
+    Minutes = Table.AddColumn(Combined, "Minutes", each
+        if Text.Contains([Duration], ":") then
+            let p = Text.Split([Duration], ":") in Number.From(p{0}) * 60 + Number.From(p{1})
+        else Number.From([Duration]), Int64.Type),
+    // 30-minute rule: attended only if more than 30 minutes
+    Attended = Table.AddColumn(Minutes, "Attended", each if [Minutes] > 30 then 1 else 0, Int64.Type),
+    Clean = Table.TransformColumns(Attended, {{"Email", each Text.Lower(Text.Trim(_)), type text}, {"Name", Text.Trim, type text}}),
+    Typed = Table.TransformColumnTypes(Table.RemoveColumns(Clean, {"Duration"}), {{"Track", type text}, {"Date", type date}, {"Week", Int64.Type}}),
+    Result = Table.AddColumn(Typed, "Month Key", each Date.StartOfMonth([Date]), type date)
+in
+    Result
+
+
+----------------------------------------------------------------
+2. Status  (140 rows — load disabled)
+----------------------------------------------------------------
+let
+    Files = Table.SelectRows(Folder.Files(FolderPath), each Text.Contains([Folder Path], "Status of Learners") and [Extension] = ".xlsx" and not Text.StartsWith([Name], "~$")),
+    AddTable = Table.AddColumn(Files, "T", each Table.SelectRows(Excel.Workbook([Content], true), each [Kind] = "Sheet"){0}[Data]),
+    Combined = Table.Combine(AddTable[T]),
+    Renamed = Table.RenameColumns(Combined, {{"email", "Email"}}),
+    Clean = Table.TransformColumns(Renamed, {{"Email", each Text.Lower(Text.Trim(_)), type text}, {"Graduation Status", Text.Trim, type text}, {"Certification Status", Text.Trim, type text}})
+in
+    Clean
+
+
+----------------------------------------------------------------
+3. Learners  (140 rows — dimension, one per learner)
+----------------------------------------------------------------
+let
+    Base = Table.Distinct(Table.SelectColumns(Attendance, {"Email", "Name", "Track"})),
+    Merged = Table.NestedJoin(Base, {"Email"}, Status, {"Email"}, "S", JoinKind.LeftOuter),
+    Expanded = Table.ExpandTableColumn(Merged, "S", {"Graduation Status", "Certification Status"}),
+    AttStats = Table.Group(Attendance, {"Email"}, {
+        {"First Session", each List.Min([Date]), type date},
+        {"Last Session", each List.Max([Date]), type date},
+        {"Short Sessions", each List.Count(List.Select([Attended], (a) => a = 0)), Int64.Type}}),
+    WithAtt = Table.ExpandTableColumn(
+        Table.NestedJoin(Expanded, {"Email"}, AttStats, {"Email"}, "A", JoinKind.LeftOuter),
+        "A", {"First Session", "Last Session", "Short Sessions"}),
+    // One cohort, derived from the first session month (future cohorts get their own value automatically)
+    Cohort = Table.AddColumn(WithAtt, "Cohort", each "Cohort " & Date.ToText([First Session], [Format = "MMM yyyy", Culture = "en-US"]), type text),
+    CertType = Table.AddColumn(Cohort, "Certification Type", each if [Track] = "Power BI" then "Power BI" else "AWS", type text),
+    // Truncated attendance = at least one session of 30 minutes or less
+    Truncated = Table.AddColumn(CertType, "Truncated Attendance", each [Short Sessions] > 0, type logical),
+    // Dropout = Non-Graduate AND Not Certified AND truncated attendance (all three)
+    Dropout = Table.AddColumn(Truncated, "Is Dropout", each [Graduation Status] = "Non Graduate" and [Certification Status] = "Not Certified" and [Truncated Attendance], type logical),
+    Outcome = Table.AddColumn(Dropout, "Learner Outcome", each if [Is Dropout] then "Dropped Out" else if [Graduation Status] = "Graduate" then "Graduated" else "Did Not Graduate", type text),
+    // Program Status (cohort level, any program length): Ongoing if the cohort had a session in the last 14 days
+    CohortEnd = Table.Group(Outcome, {"Cohort"}, {{"Cohort Last Session", each List.Max([Last Session]), type date}}),
+    WithEnd = Table.ExpandTableColumn(
+        Table.NestedJoin(Outcome, {"Cohort"}, CohortEnd, {"Cohort"}, "E", JoinKind.LeftOuter),
+        "E", {"Cohort Last Session"}),
+    Program = Table.AddColumn(WithEnd, "Program Status", each
+        if Duration.Days(Date.From(DateTime.LocalNow()) - [Cohort Last Session]) > 14 then "Completed" else "Ongoing", type text)
+in
+    Program
+
+
+----------------------------------------------------------------
+4. Assessments  (2,800 rows — labs and quizzes, one per learner per week per type)
+----------------------------------------------------------------
+let
+    Files = Table.SelectRows(Folder.Files(FolderPath), each Text.Contains([Folder Path], "Labs & Quizes") and [Extension] = ".xlsx" and not Text.StartsWith([Name], "~$")),
+    AddTable = Table.AddColumn(Files, "T", each
+        let
+            track = let f = Text.BeforeDelimiter(Text.Middle([Folder Path], Text.Length(FolderPath)), "\") in if Text.Contains(f, "PowerBI") then "Power BI" else if Text.Contains(f, "Cloud") then "AWS Cloud" else Text.Trim(Text.Replace(f, "Training", "")),
+            sheets = Table.SelectRows(Excel.Workbook([Content], true), each [Kind] = "Sheet"),
+            tagged = Table.AddColumn(sheets, "D", (r) => Table.AddColumn(Table.AddColumn(r[Data], "Type", (x) => r[Name]), "Track", (x) => track))
+        in
+            Table.Combine(tagged[D])),
+    Combined = Table.Combine(AddTable[T]),
+    Unpivoted = Table.UnpivotOtherColumns(Combined, {"email", "Type", "Track"}, "WeekText", "Score"),
+    AddWeek = Table.AddColumn(Unpivoted, "Week", each Number.From(Text.Replace([WeekText], "Week ", "")), Int64.Type),
+    Clean = Table.TransformColumns(Table.RemoveColumns(AddWeek, {"WeekText"}), {
+        {"email", each Text.Lower(Text.Trim(_)), type text},
+        {"Score", Number.From, type number},
+        {"Type", each if Text.StartsWith(_, "Lab") then "Lab" else "Quiz", type text}}),
+    Renamed = Table.RenameColumns(Clean, {{"email", "Email"}}),
+    // Labs/quizzes have no date: month = learner's first session + (week - 1) * 7 days
+    FirstSession = Table.Group(Attendance, {"Email"}, {{"First Session", each List.Min([Date]), type date}}),
+    Merged = Table.NestedJoin(Renamed, {"Email"}, FirstSession, {"Email"}, "F", JoinKind.LeftOuter),
+    Expanded = Table.ExpandTableColumn(Merged, "F", {"First Session"}),
+    AddMonthKey = Table.AddColumn(Expanded, "Month Key", each Date.StartOfMonth(Date.AddDays([First Session], ([Week] - 1) * 7 + 2)), type date),
+    Result = Table.RemoveColumns(AddMonthKey, {"First Session"})
+in
+    Result
+
+
+----------------------------------------------------------------
+5. Participation  (6,037 rows — one per learner per day they participated)
+----------------------------------------------------------------
+let
+    Files = Table.SelectRows(Folder.Files(FolderPath), each Text.Contains([Folder Path], "\Participation\") and [Extension] = ".xlsx" and not Text.StartsWith([Name], "~$")),
+    AddTable = Table.AddColumn(Files, "T", each
+        let
+            track = let f = Text.BeforeDelimiter(Text.Middle([Folder Path], Text.Length(FolderPath)), "\") in if Text.Contains(f, "PowerBI") then "Power BI" else if Text.Contains(f, "Cloud") then "AWS Cloud" else Text.Trim(Text.Replace(f, "Training", "")),
+            data = Table.SelectRows(Excel.Workbook([Content], true), each [Kind] = "Sheet"){0}[Data]
+        in
+            Table.AddColumn(Table.SelectColumns(data, {"Date", "Participants"}), "Track", each track)),
+    Combined = Table.Combine(AddTable[T]),
+    Split = Table.ExpandListColumn(Table.TransformColumns(Combined, {"Participants", each Text.Split(_, ",")}), "Participants"),
+    Trimmed = Table.TransformColumns(Split, {{"Participants", Text.Trim, type text}, {"Track", each _, type text}}),
+    Dates = Table.TransformColumns(Trimmed, {"Date", each if _ is date or _ is datetime then Date.From(_) else Date.FromText(_, [Format = "dd-MMM-yyyy", Culture = "en-US"]), type date}),
+    // Week comes from the attendance data (no hard-coded start date)
+    WeekLookup = Table.Distinct(Table.SelectColumns(Attendance, {"Date", "Track", "Week"})),
+    WeekMerge = Table.NestedJoin(Dates, {"Date", "Track"}, WeekLookup, {"Date", "Track"}, "W", JoinKind.LeftOuter),
+    AddWeek = Table.TransformColumnTypes(Table.ExpandTableColumn(WeekMerge, "W", {"Week"}), {{"Week", Int64.Type}}),
+    // Names -> emails through attendance
+    Lookup = Table.Distinct(Table.SelectColumns(Attendance, {"Name", "Track", "Email"})),
+    Merged = Table.NestedJoin(AddWeek, {"Participants", "Track"}, Lookup, {"Name", "Track"}, "L", JoinKind.LeftOuter),
+    Expanded = Table.ExpandTableColumn(Merged, "L", {"Email"}),
+    Renamed = Table.RenameColumns(Expanded, {{"Participants", "Name"}}),
+    Result = Table.AddColumn(Renamed, "Month Key", each Date.StartOfMonth([Date]), type date)
+in
+    Result
+
+
+----------------------------------------------------------------
+6. Weeks  (10 rows — program week dimension)
+----------------------------------------------------------------
+let
+    Grouped = Table.Group(Attendance, {"Week"}, {{"Week Start", each List.Min([Date]), type date}}),
+    AddMid = Table.AddColumn(Grouped, "Mid Week", each Date.AddDays([Week Start], 2), type date),
+    AddMonth = Table.AddColumn(AddMid, "Month", each Date.MonthName([Mid Week], "en-US"), type text),
+    AddMonthNo = Table.AddColumn(AddMonth, "Month No", each Date.Month([Mid Week]), Int64.Type),
+    AddLabel = Table.AddColumn(AddMonthNo, "Week Label", each "Week " & Text.From([Week]), type text),
+    Sorted = Table.Sort(Table.RemoveColumns(AddLabel, {"Mid Week"}), {{"Week", Order.Ascending}})
+in
+    Sorted
+// In the model: Week Label sorted by Week. Month, Month No, Week, Week Start hidden (Months table replaces Month).
+
+
+----------------------------------------------------------------
+7. Months  (3 rows — calendar month dimension, grows with future cohorts)
+----------------------------------------------------------------
+let
+    Source = Table.Distinct(Table.Combine({
+        Table.SelectColumns(Attendance, {"Month Key"}),
+        Table.SelectColumns(Participation, {"Month Key"}),
+        Table.SelectColumns(Assessments, {"Month Key"})})),
+    AddName = Table.AddColumn(Source, "Month", each Date.ToText([Month Key], [Format = "MMMM yyyy", Culture = "en-US"]), type text),
+    Typed = Table.TransformColumnTypes(AddName, {{"Month Key", type date}}),
+    Sorted = Table.Sort(Typed, {{"Month Key", Order.Ascending}})
+in
+    Sorted
+// In the model: Month sorted by Month Key. Month Key hidden in all tables.

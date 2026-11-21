@@ -1,0 +1,77 @@
+DARE CAREERS — DAX MEASURES
+===========================
+All measures are stored in the disconnected table _Measures.
+KEEPFILTERS = the condition works together with slicers on the same column.
++ 0 = shows 0 instead of blank when nothing matches (counts only).
+
+
+-- ---------- Learner counts ----------
+Total Learners = DISTINCTCOUNT ( Learners[Email] )
+
+Total Graduations = CALCULATE ( [Total Learners], KEEPFILTERS ( Learners[Graduation Status] = "Graduate" ) ) + 0
+
+Total Certifications = CALCULATE ( [Total Learners], KEEPFILTERS ( Learners[Certification Status] = "Certified" ) ) + 0
+
+-- Dropout = Non-Graduate AND Not Certified AND truncated attendance (Is Dropout column in Learners)
+Total Dropouts = CALCULATE ( [Total Learners], KEEPFILTERS ( Learners[Is Dropout] = TRUE () ) ) + 0
+
+
+-- ---------- Rates ----------
+Graduation Rate = DIVIDE ( [Total Graduations], [Total Learners] )
+
+Certification Rate = DIVIDE ( [Total Certifications], [Total Learners] )
+
+Dropout Rate = DIVIDE ( [Total Dropouts], [Total Learners] )
+
+
+-- ---------- Attendance (30-minute rule applied in Attendance[Attended]) ----------
+Total Sessions = COUNTROWS ( Attendance )
+
+Attended Sessions = SUM ( Attendance[Attended] )
+
+Attendance Rate = DIVIDE ( [Attended Sessions], [Total Sessions] )
+
+Total Hours in Class = DIVIDE ( CALCULATE ( SUM ( Attendance[Minutes] ), Attendance[Attended] = 1 ), 60 ) + 0
+
+
+-- ---------- Participation ----------
+Participation Days = COUNTROWS ( Participation )
+
+Participation Rate = DIVIDE ( [Participation Days], [Total Sessions] )
+
+
+-- ---------- Assessments ----------
+Avg Assessment Score = AVERAGE ( Assessments[Score] )
+
+Avg Lab Score = CALCULATE ( AVERAGE ( Assessments[Score] ), Assessments[Type] = "Lab" )
+
+Avg Quiz Score = CALCULATE ( AVERAGE ( Assessments[Score] ), Assessments[Type] = "Quiz" )
+
+-- A lab counts as completed when its score is above 0
+Count of Labs = CALCULATE ( COUNTROWS ( Assessments ), Assessments[Type] = "Lab", Assessments[Score] > 0 ) + 0
+
+Avg Labs Completed = DIVIDE ( [Count of Labs], [Total Learners] )
+
+-- Labs possible in the selected weeks minus labs completed (used to highlight missed labs)
+Labs Missed =
+VAR possible = CALCULATE ( DISTINCTCOUNT ( Assessments[Week] ), Assessments[Type] = "Lab" )
+RETURN possible - [Count of Labs]
+
+
+-- ---------- Card display (cards shorten large numbers, text is shown in full) ----------
+Labs Display = FORMAT ( [Count of Labs], "#,0" )
+
+Hours Display = FORMAT ( [Total Hours in Class], "#,0.0" )
+
+
+-- ---------- Formats ----------
+-- Rates: Percentage. Attendance Rate and Participation Rate 0 decimals on Page 2 (1 decimal on Page 1 charts if preferred).
+-- Avg Assessment Score, Avg Labs Completed, Total Hours in Class: Decimal number, 1 decimal.
+
+
+-- ---------- Expected values (no filters) ----------
+-- Total Learners 140 | Total Graduations 119 | Total Certifications 92 | Total Dropouts 7
+-- Graduation Rate 85.0% | Certification Rate 65.7% | Dropout Rate 5.0%
+-- Total Sessions 7,000 | Attended Sessions 6,585 | Attendance Rate 94.1% | Total Hours in Class 10,565.7
+-- Participation Days 6,037 | Participation Rate 86.2%
+-- Avg Assessment Score 50.8 | Count of Labs 1,383 | Avg Labs Completed 9.9
