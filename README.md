@@ -199,49 +199,49 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ![docker compose ps: ZooKeeper, Kafka, PostgreSQL, Kafka UI, Mailpit and Grafana are up and healthy](screenshots/01_docker_ps.png)
 
-**Tests, consumer, alert service and producer running together (about 100 ms from producer to database)** ([`06_all_running.png`](screenshots/06_all_running.png))
+**Tests, consumer, alert service and producer running together (about 100 ms from producer to database)** ([`02_all_running.png`](screenshots/02_all_running.png))
 
-![Tests, consumer, alert service and producer running together (about 100 ms from producer to database)](screenshots/06_all_running.png)
+![Tests, consumer, alert service and producer running together (about 100 ms from producer to database)](screenshots/02_all_running.png)
 
 ### 2. Kafka
 
-**Topics: `heartbeats` has 3 partitions, `heartbeat-alerts` has 1** ([`31_kafka_ui_topics.png`](screenshots/31_kafka_ui_topics.png))
+**Topics: `heartbeats` has 3 partitions, `heartbeat-alerts` has 1** ([`03_kafka_ui_topics.png`](screenshots/03_kafka_ui_topics.png))
 
-![Topics: heartbeats has 3 partitions, heartbeat-alerts has 1](screenshots/31_kafka_ui_topics.png)
+![Topics: heartbeats has 3 partitions, heartbeat-alerts has 1](screenshots/03_kafka_ui_topics.png)
 
-**The key is the patient id, so each patient always goes to the same partition (in order)** ([`33_kafka_ui_messages_keys.png`](screenshots/33_kafka_ui_messages_keys.png))
+**The key is the patient id, so each patient always goes to the same partition (in order)** ([`04_kafka_ui_messages_keys.png`](screenshots/04_kafka_ui_messages_keys.png))
 
-![The key is the patient id, so each patient always goes to the same partition (in order)](screenshots/33_kafka_ui_messages_keys.png)
+![The key is the patient id, so each patient always goes to the same partition (in order)](screenshots/04_kafka_ui_messages_keys.png)
 
 ### 3. Data in PostgreSQL
 
-**Saved readings with their status and `total_seconds` (producer to database, about 0.1 s)** ([`13_db_readings.png`](screenshots/13_db_readings.png))
+**Saved readings with their status and `total_seconds` (producer to database, about 0.1 s)** ([`05_db_readings.png`](screenshots/05_db_readings.png))
 
-![Saved readings with their status and total_seconds (producer to database, about 0.1 s)](screenshots/13_db_readings.png)
+![Saved readings with their status and total_seconds (producer to database, about 0.1 s)](screenshots/05_db_readings.png)
 
-**Rejected readings with the reason (impossible heart rates from sensor glitches)** ([`14_db_rejected.png`](screenshots/14_db_rejected.png))
+**Rejected readings with the reason (impossible heart rates from sensor glitches)** ([`06_db_rejected.png`](screenshots/06_db_rejected.png))
 
-![Rejected readings with the reason (impossible heart rates from sensor glitches)](screenshots/14_db_rejected.png)
+![Rejected readings with the reason (impossible heart rates from sensor glitches)](screenshots/06_db_rejected.png)
 
-**Health alerts: patient, high or low, severity, personal limit, peak, start and end** ([`15_db_alerts.png`](screenshots/15_db_alerts.png))
+**Health alerts: patient, high or low, severity, personal limit, peak, start and end** ([`07_db_alerts.png`](screenshots/07_db_alerts.png))
 
-![Health alerts: patient, high or low, severity, personal limit, peak, start and end](screenshots/15_db_alerts.png)
+![Health alerts: patient, high or low, severity, personal limit, peak, start and end](screenshots/07_db_alerts.png)
 
 ### 4. Tests
 
-**`pytest`: 143 tests passed** ([`02_pytest.png`](screenshots/02_pytest.png))
+**`pytest`: 143 tests passed** ([`08_pytest.png`](screenshots/08_pytest.png))
 
-![pytest: 143 tests passed](screenshots/02_pytest.png)
+![pytest: 143 tests passed](screenshots/08_pytest.png)
 
-**End-to-end self-check through real Kafka and PostgreSQL: 19/19 passed** ([`08_self_check.png`](screenshots/08_self_check.png))
+**End-to-end self-check through real Kafka and PostgreSQL: 19/19 passed** ([`09_self_check.png`](screenshots/09_self_check.png))
 
-![End-to-end self-check through real Kafka and PostgreSQL: 19/19 passed](screenshots/08_self_check.png)
+![End-to-end self-check through real Kafka and PostgreSQL: 19/19 passed](screenshots/09_self_check.png)
 
 ### 5. Health alert email (to doctors)
 
-**CRITICAL: PT-0052 (senior, age 88) is HIGH, 142 bpm against their personal limit of 112** ([`23_email_critical_high.png`](screenshots/23_email_critical_high.png))
+**CRITICAL: PT-0052 (senior, age 88) is HIGH, 142 bpm against their personal limit of 112** ([`10_email_critical_high.png`](screenshots/10_email_critical_high.png))
 
-![CRITICAL: PT-0052 (senior, age 88) is HIGH, 142 bpm against their personal limit of 112](screenshots/23_email_critical_high.png)
+![CRITICAL: PT-0052 (senior, age 88) is HIGH, 142 bpm against their personal limit of 112](screenshots/10_email_critical_high.png)
 
 ### 6. Database stopped: automatic recovery
 
@@ -251,9 +251,9 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ### 7. Grafana dashboard
 
-**Seconds per step: the spike at 17:04 is the database outage; readings waited in Kafka and nothing was lost** ([`19_grafana_seconds_per_step.png`](screenshots/19_grafana_seconds_per_step.png))
+**Seconds per step: the spike at 17:04 is the database outage; readings waited in Kafka and nothing was lost** ([`12_grafana_seconds_per_step.png`](screenshots/12_grafana_seconds_per_step.png))
 
-![Seconds per step: the spike at 17:04 is the database outage; readings waited in Kafka and nothing was lost](screenshots/19_grafana_seconds_per_step.png)
+![Seconds per step: the spike at 17:04 is the database outage; readings waited in Kafka and nothing was lost](screenshots/12_grafana_seconds_per_step.png)
 
 ## Timing: how long each step takes
 
