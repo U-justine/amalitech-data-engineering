@@ -1,0 +1,440 @@
+{
+  "uid": "heartbeat-monitor",
+  "title": "PulseGuard",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Readings",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(recorded_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Patients",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(DISTINCT customer_id) FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(recorded_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Low / high",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND status <> 'normal' AND $__timeFilter(recorded_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Rejected",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) FROM rejected_readings WHERE $__timeFilter(rejected_at) AND raw_message NOT LIKE '%TEST-%'"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Heart rate by patient",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT recorded_at AS time, customer_id AS metric, heart_rate AS value FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(recorded_at) ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Readings per minute by status",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(recorded_at,'1m'), status AS metric, count(*) AS value FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(recorded_at) GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": {
+              "mode": "normal"
+            },
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Latest low / high readings",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT recorded_at, customer_id, heart_rate, status FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND status <> 'normal' AND $__timeFilter(recorded_at) ORDER BY recorded_at DESC LIMIT 50"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Latest reading per customer",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT * FROM latest_readings WHERE customer_id NOT LIKE 'TEST-%'"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Seconds per step (producer \u2192 consumer \u2192 database)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(saved_at,'1m'), avg(kafka_seconds) AS \"producer -> consumer\", avg(save_seconds) AS \"consumer -> database\", avg(total_seconds) AS \"total\" FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(saved_at) GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Open health alerts",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT * FROM open_alerts WHERE customer_id NOT LIKE 'TEST-%'"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Alerts emailed (range)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) FROM alert_episodes WHERE customer_id NOT LIKE 'TEST-%' AND opened_email_at IS NOT NULL AND $__timeFilter(started_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    }
+  ]
+}

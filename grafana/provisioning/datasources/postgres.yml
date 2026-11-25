@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: HeartbeatPostgres
+    uid: heartbeat-pg
+    type: grafana-postgresql-datasource
+    url: postgres:5432
+    user: heartbeat
+    isDefault: true
+    secureJsonData:
+      password: heartbeat
+    jsonData:
+      database: heartbeat
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
