@@ -2,8 +2,8 @@
 
 Two kinds of tests:
 
-1. **Automated tests** (`pytest`, in `tests/`). These test each part on its own. Kafka is replaced by a small fake; the database tests use a real PostgreSQL test database; the email tests send real emails to a real email server started inside the test.
-2. **End-to-end check** (`check_pipeline.py`). This sends real messages through Kafka to the running consumer and alert service, and checks what ends up in PostgreSQL and whether the alert was emailed.
+1. **Automated tests** (`pytest`, in [`tests/`](tests)). These test each part on its own. Kafka is replaced by a small fake; the database tests use a real PostgreSQL test database; the email tests send real emails to a real email server started inside the test.
+2. **End-to-end check** ([`check_pipeline.py`](scripts/check_pipeline.py)). This sends real messages through Kafka to the running consumer and alert service, and checks what ends up in PostgreSQL and whether the alert was emailed.
 
 Each test is a **Good** case (valid input: it should work) or an **Error** case (bad input or a failure: it must be caught and handled safely).
 
@@ -37,7 +37,7 @@ Each test is a **Good** case (valid input: it should work) or an **Error** case 
 
 Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see the README).
 
-### Simulated heart rates (generator.py)  (`tests/test_generator.py`)
+### Simulated heart rates ([generator.py](pulseguard/simulation/generator.py))  ([`tests/test_generator.py`](tests/test_generator.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -48,7 +48,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T05 | Medical event low | Good | PASS |
 | T06 | Glitches happen at the bad chance rate | Good | PASS |
 
-### Patient profiles and personal limits (patients.py)  (`tests/test_patients.py`)
+### Patient profiles and personal limits ([patients.py](pulseguard/simulation/patients.py))  ([`tests/test_patients.py`](tests/test_patients.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -63,7 +63,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T15 | Database refuses bad patients: age 150 | Error | PASS |
 | T16 | Database refuses bad patients: low limit above high limit | Error | PASS |
 
-### Producer (producer.py)  (`tests/test_producer.py`)
+### Producer ([producer.py](pulseguard/services/producer.py))  ([`tests/test_producer.py`](tests/test_producer.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -72,7 +72,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T19 | Emergency for unknown patient stops with a message | Good | PASS |
 | T20 | Bad chance of one makes every reading bad | Good | PASS |
 
-### Validation (validator.py)  (`tests/test_validator.py`)
+### Validation ([validator.py](pulseguard/processing/validator.py))  ([`tests/test_validator.py`](tests/test_validator.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -118,7 +118,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T60 | Bad messages are rejected: 230.6 rounds to 231 | Error | PASS |
 | T61 | Bad messages are rejected: heart_rate 300 | Error | PASS |
 
-### Health alert rules (episodes.py)  (`tests/test_episodes.py`)
+### Health alert rules ([episodes.py](pulseguard/processing/episodes.py))  ([`tests/test_episodes.py`](tests/test_episodes.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -135,7 +135,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T72 | Switching from high to low closes and starts again | Error | PASS |
 | T73 | Readings with gaps still count by time | Error | PASS |
 
-### Consumer (consumer.py, batch.py)  (`tests/test_consumer.py`)
+### Consumer ([consumer.py](pulseguard/services/consumer.py), [batch.py](pulseguard/processing/batch.py))  ([`tests/test_consumer.py`](tests/test_consumer.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -150,7 +150,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T82 | Database fails then recovers | Error | PASS |
 | T83 | Consumer gives up if kafka is down | Error | PASS |
 
-### Database (database.py, alerts_db.py + schema rules)  (`tests/test_database.py`)
+### Database ([database.py](pulseguard/storage/database.py), [alerts_db.py](pulseguard/storage/alerts_db.py) + schema rules)  ([`tests/test_database.py`](tests/test_database.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -169,7 +169,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T96 | Connection still works after a failed batch | Error | PASS |
 | T97 | Connect gives up if database is down | Error | PASS |
 
-### Database outage while running: wait and retry the same batch  (`tests/test_retry.py`)
+### Database outage while running: wait and retry the same batch  ([`tests/test_retry.py`](tests/test_retry.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -181,7 +181,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T103 | Messages handed out while paused are put back | Error | PASS |
 | T104 | Patient limits reload during an outage does not crash | Error | PASS |
 
-### Health alerts end to end: consumer, alerts topic, alert service, real email server  (`tests/test_alerts.py`, `tests/test_alert_emails.py`)
+### Health alerts end to end: consumer, alerts topic, alert service, real email server  ([`tests/test_alerts.py`](tests/test_alerts.py), [`tests/test_alert_emails.py`](tests/test_alert_emails.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -196,7 +196,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T113 | Email server down then back alert is not lost | Error | PASS |
 | T114 | Alert service failure sends failure email | Error | PASS |
 
-### System problem and back-online emails (system_alerts.py, back_online.py), sent to a real local email server  (`tests/test_email.py`, `tests/test_failure_emails.py`, `tests/test_back_online.py`, `tests/test_self_check_report.py`)
+### System problem and back-online emails ([system_alerts.py](pulseguard/notifications/system_alerts.py), [back_online.py](pulseguard/notifications/back_online.py)), sent to a real local email server  ([`tests/test_email.py`](tests/test_email.py), [`tests/test_failure_emails.py`](tests/test_failure_emails.py), [`tests/test_back_online.py`](tests/test_back_online.py), [`tests/test_self_check_report.py`](tests/test_self_check_report.py))
 
 | # | Test case | Type | Result |
 |---|---|---|---|
@@ -226,9 +226,9 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T138 | Self check only alert emails broken | Good | PASS |
 | T139 | Self check something else broken | Good | PASS |
 
-## End-to-end test cases (`check_pipeline.py`)
+## End-to-end test cases ([`check_pipeline.py`](scripts/check_pipeline.py))
 
-Run with Docker, `consumer.py` and `alert_service.py` running: `python -m scripts.check_pipeline`. The last two checks send heart-rate stories: 20 seconds at 150 bpm (should **not** alert), and 35 seconds at 150 bpm (should alert **and** be emailed). Test patients are not registered, so the clinic default limits (50–120) apply.
+Run with Docker, [`consumer.py`](pulseguard/services/consumer.py) and [`alert_service.py`](pulseguard/services/alert_service.py) running: `python -m scripts.check_pipeline`. The last two checks send heart-rate stories: 20 seconds at 150 bpm (should **not** alert), and 35 seconds at 150 bpm (should alert **and** be emailed). Test patients are not registered, so the clinic default limits (50–120) apply.
 
 | # | Test case | Type | Expected | Result |
 |---|---|---|---|---|

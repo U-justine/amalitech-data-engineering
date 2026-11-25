@@ -13,29 +13,29 @@ stays out of range, or when the pipeline itself fails.
 
 | Document | What's in it |
 |---|---|
-| **README.md** (this file) | what it does and how to run it |
+| **[README.md](README.md)** (this file) | what it does and how to run it |
 | [**RUNBOOK.md**](RUNBOOK.md) | step-by-step: start, check, stop, and what to do for each email |
 | [**DESIGN.md**](DESIGN.md) | Kafka architecture, design decisions, best practices, anti-patterns, trade-offs |
 | [**TEST_CASES.md**](TEST_CASES.md) | every test case and its result |
 
 ## How it works
 
-1. **`producer.py`** registers the patients in PostgreSQL the first time, then sends one
+1. **[`producer.py`](pulseguard/services/producer.py)** registers the patients in PostgreSQL the first time, then sends one
    reading per patient per second to the Kafka topic **`heartbeats`**, keyed by patient id.
-   - **`patients.py`** gives every patient a profile (athlete / adult / senior, age, resting rate)
+   - **[`patients.py`](pulseguard/simulation/patients.py)** gives every patient a profile (athlete / adult / senior, age, resting rate)
      and their **own limits**: high = 85% of (220 − age), low = 40 for athletes, otherwise 50.
-   - **`generator.py`** makes the heart rate drift naturally, with exercise, rare **medical
+   - **[`generator.py`](pulseguard/simulation/generator.py)** makes the heart rate drift naturally, with exercise, rare **medical
      events** (out of range for a minute or more) and **sensor glitches** (single bad values).
-2. **`consumer.py`** (group `heartbeat-savers`) reads batches from `heartbeats`, then
+2. **[`consumer.py`](pulseguard/services/consumer.py)** (group `heartbeat-savers`) reads batches from `heartbeats`, then
    (each step is one line in `process_one_batch`, with the detail in its own file):
-   - **`validator.py`** checks each reading; bad ones go to `rejected_readings` with a reason
+   - **[`validator.py`](pulseguard/processing/validator.py)** checks each reading; bad ones go to `rejected_readings` with a reason
    - labels each reading `normal` / `low` / `high` using **that patient's** limits
-   - **`episodes.py`** looks for **health alerts**: out of range for **30 seconds** or more
-   - **`batch.py`** handles each batch; **`database.py`** saves readings, rejected messages and alerts in **one transaction**
+   - **[`episodes.py`](pulseguard/processing/episodes.py)** looks for **health alerts**: out of range for **30 seconds** or more
+   - **[`batch.py`](pulseguard/processing/batch.py)** handles each batch; **[`database.py`](pulseguard/storage/database.py)** saves readings, rejected messages and alerts in **one transaction**
    - publishes each alert to the Kafka topic **`heartbeat-alerts`**
    - only then commits the Kafka offset, so nothing is ever lost
-3. **`alert_service.py`** (group `alert-emailers`) reads `heartbeat-alerts` and emails each
-   alert once when it starts and once when it ends (**`health_alerts.py`**). Emails it can't send are retried.
+3. **[`alert_service.py`](pulseguard/services/alert_service.py)** (group `alert-emailers`) reads `heartbeat-alerts` and emails each
+   alert once when it starts and once when it ends (**[`health_alerts.py`](pulseguard/notifications/health_alerts.py)**). Emails it can't send are retried.
 4. **Failure emails:** if the consumer, producer, alert service or pipeline check fails, it emails
    a **system problem** email to the IT team (`SYSTEM_ALERT_TO`), written in plain words: what
    stopped, why, and whether data is lost, with the technical error only at the bottom.
@@ -69,49 +69,49 @@ A short spike (one glitch, or a few seconds of effort) is saved as `high` or `lo
 
 ## Folder structure
 
-```
+<pre>
 heartbeat-monitor/
-├── pulseguard/                  the Python code (a package)
-│   ├── config.py                all settings (Kafka, database, limits, email)
-│   ├── services/                the three programs you run
-│   │   ├── producer.py          sends readings to Kafka
-│   │   ├── consumer.py          starts up and loops over batches from Kafka
-│   │   └── alert_service.py     reads the alerts topic, keeps going if the database is down
-│   ├── simulation/              fake patients and heart rates
-│   │   ├── patients.py          patient profiles and personal limits
-│   │   └── generator.py         normal life, medical events, glitches
-│   ├── processing/              rules applied to each reading
-│   │   ├── validator.py         checks one message (is it valid?)
-│   │   ├── readings.py          checks a batch and labels each reading with the patient's limits
-│   │   ├── episodes.py          decides when a patient needs a health alert (30 s rule)
-│   │   ├── alerts.py            finds, prints and publishes alerts to the alerts topic
-│   │   ├── batch.py             one batch: check -> alerts -> save -> publish -> commit
-│   │   └── timing.py            measures how long each step takes
-│   ├── storage/
-│   │   ├── database.py          connects to PostgreSQL and saves each batch
-│   │   ├── alerts_db.py         reads and updates health alerts in PostgreSQL
-│   │   └── retry.py             database down? keep the batch, wait, retry with a new connection
-│   └── notifications/
-│       ├── email_sender.py      sends one email (all emails go through here)
-│       ├── alert_emailer.py     emails each alert that still needs one, exactly once
-│       ├── health_alerts.py     doctors: alert raised / back to normal
-│       ├── system_alerts.py     IT team: SYSTEM PROBLEM in plain words
-│       └── back_online.py       IT team: BACK ONLINE after a problem
-├── scripts/                     end-to-end self-check (19 checks through real Kafka and PostgreSQL)
-│   ├── check_pipeline.py        send -> wait -> compare -> clean up -> email if broken
-│   ├── check_cases.py           the 19 test messages and what should happen
-│   └── check_report.py          results in plain words, remove test patients
-├── sql/                         schema.sql (tables, indexes, views), queries.sql (examples)
-├── tests/                       pytest tests, one file per topic (helpers.py = shared helpers)
-├── docs/                        architecture diagram
-├── grafana/                     Grafana data source and dashboard
-├── docker-compose.yml           ZooKeeper, Kafka, Kafka UI, PostgreSQL, Mailpit, Grafana
-└── requirements.txt, requirements-dev.txt, pytest.ini, .env.example
-```
+├── <a href="pulseguard">pulseguard/</a>                  the Python code (a package)
+│   ├── <a href="pulseguard/config.py">config.py</a>                all settings (Kafka, database, limits, email)
+│   ├── <a href="pulseguard/services">services/</a>                the three programs you run
+│   │   ├── <a href="pulseguard/services/producer.py">producer.py</a>          sends readings to Kafka
+│   │   ├── <a href="pulseguard/services/consumer.py">consumer.py</a>          starts up and loops over batches from Kafka
+│   │   └── <a href="pulseguard/services/alert_service.py">alert_service.py</a>     reads the alerts topic, keeps going if the database is down
+│   ├── <a href="pulseguard/simulation">simulation/</a>              fake patients and heart rates
+│   │   ├── <a href="pulseguard/simulation/patients.py">patients.py</a>          patient profiles and personal limits
+│   │   └── <a href="pulseguard/simulation/generator.py">generator.py</a>         normal life, medical events, glitches
+│   ├── <a href="pulseguard/processing">processing/</a>              rules applied to each reading
+│   │   ├── <a href="pulseguard/processing/validator.py">validator.py</a>         checks one message (is it valid?)
+│   │   ├── <a href="pulseguard/processing/readings.py">readings.py</a>          checks a batch and labels each reading with the patient's limits
+│   │   ├── <a href="pulseguard/processing/episodes.py">episodes.py</a>          decides when a patient needs a health alert (30 s rule)
+│   │   ├── <a href="pulseguard/processing/alerts.py">alerts.py</a>            finds, prints and publishes alerts to the alerts topic
+│   │   ├── <a href="pulseguard/processing/batch.py">batch.py</a>             one batch: check -&gt; alerts -&gt; save -&gt; publish -&gt; commit
+│   │   └── <a href="pulseguard/processing/timing.py">timing.py</a>            measures how long each step takes
+│   ├── <a href="pulseguard/storage">storage/</a>
+│   │   ├── <a href="pulseguard/storage/database.py">database.py</a>          connects to PostgreSQL and saves each batch
+│   │   ├── <a href="pulseguard/storage/alerts_db.py">alerts_db.py</a>         reads and updates health alerts in PostgreSQL
+│   │   └── <a href="pulseguard/storage/retry.py">retry.py</a>             database down? keep the batch, wait, retry with a new connection
+│   └── <a href="pulseguard/notifications">notifications/</a>
+│       ├── <a href="pulseguard/notifications/email_sender.py">email_sender.py</a>      sends one email (all emails go through here)
+│       ├── <a href="pulseguard/notifications/alert_emailer.py">alert_emailer.py</a>     emails each alert that still needs one, exactly once
+│       ├── <a href="pulseguard/notifications/health_alerts.py">health_alerts.py</a>     doctors: alert raised / back to normal
+│       ├── <a href="pulseguard/notifications/system_alerts.py">system_alerts.py</a>     IT team: SYSTEM PROBLEM in plain words
+│       └── <a href="pulseguard/notifications/back_online.py">back_online.py</a>       IT team: BACK ONLINE after a problem
+├── <a href="scripts">scripts/</a>                     end-to-end self-check (19 checks through real Kafka and PostgreSQL)
+│   ├── <a href="scripts/check_pipeline.py">check_pipeline.py</a>        send -&gt; wait -&gt; compare -&gt; clean up -&gt; email if broken
+│   ├── <a href="scripts/check_cases.py">check_cases.py</a>           the 19 test messages and what should happen
+│   └── <a href="scripts/check_report.py">check_report.py</a>          results in plain words, remove test patients
+├── <a href="sql">sql/</a>                         <a href="sql/schema.sql">schema.sql</a> (tables, indexes, views), <a href="sql/queries.sql">queries.sql</a> (examples)
+├── <a href="tests">tests/</a>                       pytest tests, one file per topic (<a href="tests/helpers.py">helpers.py</a> = shared helpers)
+├── <a href="docs">docs/</a>                        architecture diagram
+├── <a href="grafana">grafana/</a>                     Grafana data source and dashboard
+├── <a href="docker-compose.yml">docker-compose.yml</a>           ZooKeeper, Kafka, Kafka UI, PostgreSQL, Mailpit, Grafana
+└── <a href="requirements.txt">requirements.txt</a>, <a href="requirements-dev.txt">requirements-dev.txt</a>, <a href="pytest.ini">pytest.ini</a>, <a href=".env.example">.env.example</a>
+</pre>
 
 Run every command **from the project folder** (`heartbeat-monitor`). The programs are run as
 modules with `python -m`, e.g. `python -m pulseguard.services.consumer`, so Python can find
-the `pulseguard` package.
+the [`pulseguard`](pulseguard) package.
 
 ## How to run
 
@@ -186,7 +186,7 @@ within 10 seconds they save the batch they were holding, carry on, and email
 `[PulseGuard] BACK ONLINE: ... (was down ...)`. Nobody has to restart anything, and no readings are lost.
 
 To use a real inbox instead of Mailpit (e.g. Gmail), set `SMTP_HOST`, `SMTP_PORT=587`,
-`SMTP_TLS=yes`, `SMTP_USER`, `SMTP_PASSWORD` (an *app password*) and `ALERT_TO` (see `.env.example`).
+`SMTP_TLS=yes`, `SMTP_USER`, `SMTP_PASSWORD` (an *app password*) and `ALERT_TO` (see [`.env.example`](.env.example)).
 
 ## Timing: how long each step takes
 

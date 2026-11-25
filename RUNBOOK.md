@@ -142,7 +142,7 @@ dir .pulseguard_state
 
 1. Is Mailpit running? `docker compose ps` should show `hb-mailpit`. Open <http://localhost:8025>.
 2. Send a test: `python -m pulseguard.notifications.email_sender`.
-3. If you see `WARNING: could not send email`, check the `SMTP_*` settings (`.env.example`).
+3. If you see `WARNING: could not send email`, check the `SMTP_*` settings ([`.env.example`](.env.example)).
 
 ---
 
@@ -153,6 +153,6 @@ dir .pulseguard_state
 | Demo a health alert | `python -m pulseguard.services.producer --emergency PT-0007` (or `--emergency-kind low`) |
 | Demo a failure email and automatic recovery | with the consumer running: `docker stop hb-postgres`, wait 30 s, `docker start hb-postgres` |
 | Read every message again | `$env:KAFKA_GROUP_ID="replay-1"; python -m pulseguard.services.consumer` (duplicates are skipped) |
-| Handle more load | run `consumer.py` in up to 3 windows (3 partitions = up to 3 consumers) |
+| Handle more load | run [`consumer.py`](pulseguard/services/consumer.py) in up to 3 windows (3 partitions = up to 3 consumers) |
 | Add more patients | `python -m pulseguard.services.producer --patients 500` (new patients are registered automatically) |
 | Change a patient's limits | `UPDATE patients SET high_limit = 140 WHERE customer_id = 'PT-0007';` (the consumer picks it up when restarted) |

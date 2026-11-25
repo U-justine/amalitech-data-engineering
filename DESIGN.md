@@ -12,8 +12,8 @@ and the trade-offs behind them.
 | **Topic** | A named stream of messages | `heartbeats` (readings) and `heartbeat-alerts` (alerts) |
 | **Partition** | A topic is split into ordered logs, so work can be shared | `heartbeats`: 3, `heartbeat-alerts`: 1 |
 | **Message key** | Decides the partition; same key → same partition → kept in order | the patient id (`customer_id`) |
-| **Producer** | Writes messages | `producer.py`, and `consumer.py` (writes alerts) |
-| **Consumer group** | Consumers that share a topic's partitions | `heartbeat-savers` (`consumer.py`), `alert-emailers` (`alert_service.py`) |
+| **Producer** | Writes messages | [`producer.py`](pulseguard/services/producer.py), and [`consumer.py`](pulseguard/services/consumer.py) (writes alerts) |
+| **Consumer group** | Consumers that share a topic's partitions | `heartbeat-savers` ([`consumer.py`](pulseguard/services/consumer.py)), `alert-emailers` ([`alert_service.py`](pulseguard/services/alert_service.py)) |
 | **Offset** | A consumer's position in a partition | committed by hand, only after the work is done |
 
 ```
@@ -24,7 +24,7 @@ producer.py ──► [heartbeats: P0 P1 P2] ──► consumer.py (group heartb
 
 Two topics and two consumer groups mean alert emailing is **independent** of saving readings.
 If emailing is slow or down, readings are still saved. More alert subscribers (SMS, a pager)
-could be added later as new consumer groups, without changing `consumer.py`.
+could be added later as new consumer groups, without changing [`consumer.py`](pulseguard/services/consumer.py).
 
 ## 2. Main design decisions
 
@@ -52,7 +52,7 @@ Each episode is one row in `alert_episodes`. The time is measured from the readi
 timestamps, so the rule still works if some readings were lost or arrive in one batch.
 
 ### 2.3 The database is the source of truth for emails
-`alert_service.py` uses Kafka to know **when** to look, and the database to know **what**
+[`alert_service.py`](pulseguard/services/alert_service.py) uses Kafka to know **when** to look, and the database to know **what**
 still needs an email (`opened_email_at` / `closed_email_at` still empty). After sending,
 it fills those in. As a result:
 
@@ -77,11 +77,11 @@ Each problem is "closed" by a back-online email, like each health alert is close
 RESOLVED email, so nobody is left wondering whether it was fixed. The "down since" time is
 kept in a small file (`.pulseguard_state/`), not in the database, because the database
 may be the thing that failed. Ctrl+C is a normal stop and sends nothing.
-`RUNBOOK.md` says what to do for each email.
+[`RUNBOOK.md`](RUNBOOK.md) says what to do for each email.
 
 ### 2.5 A database outage doesn't stop the pipeline
 If the database stops while the consumer is running, the consumer does not stop with it
-(code: `pulseguard/storage/retry.py`):
+(code: [`pulseguard/storage/retry.py`](pulseguard/storage/retry.py)):
 
 1. it keeps the batch it was saving, and does **not** commit it to Kafka;
 2. it emails the IT team once ("PulseGuard retries every 10 s and will email BACK ONLINE");
@@ -99,13 +99,13 @@ The alert service does the same: it keeps running, and sends any alerts that wai
 database is back.
 
 ### 2.6 Small files, one job each
-No Python file is longer than about 130 lines. `consumer.py` only starts things and loops;
-`processing/batch.py` shows the order of the steps for one batch (poll, check, find alerts,
+No Python file is longer than about 130 lines. [`consumer.py`](pulseguard/services/consumer.py) only starts things and loops;
+[`processing/batch.py`](pulseguard/processing/batch.py) shows the order of the steps for one batch (poll, check, find alerts,
 save, publish, commit), and each step's detail lives in its own small file:
-`processing/readings.py`, `processing/alerts.py`, `processing/timing.py`, `storage/retry.py`.
-The same idea everywhere: emails are split by who gets them (`notifications/`), the
-database code by what it handles (`storage/database.py` for saving, `storage/alerts_db.py`
-for alerts), and the self-check into cases, steps and report (`scripts/`). So each file can be explained in one
+[`processing/readings.py`](pulseguard/processing/readings.py), [`processing/alerts.py`](pulseguard/processing/alerts.py), [`processing/timing.py`](pulseguard/processing/timing.py), [`storage/retry.py`](pulseguard/storage/retry.py).
+The same idea everywhere: emails are split by who gets them ([`notifications/`](pulseguard/notifications)), the
+database code by what it handles ([`storage/database.py`](pulseguard/storage/database.py) for saving, [`storage/alerts_db.py`](pulseguard/storage/alerts_db.py)
+for alerts), and the self-check into cases, steps and report ([`scripts/`](scripts)). So each file can be explained in one
 sentence and tested on its own.
 
 ## 3. Kafka best practices followed
@@ -118,8 +118,8 @@ sentence and tested on its own.
 | Idempotent processing | `UNIQUE (customer_id, recorded_at)` and deterministic episode ids make replays harmless |
 | Dead-letter handling | invalid messages go to `rejected_readings` with a reason, instead of crashing the consumer |
 | Separate topics per purpose | readings and alerts are different streams with different consumers |
-| Partitions sized for parallelism | 3 partitions allow up to 3 `consumer.py` instances to share the load |
-| Monitor the pipeline itself | timing per step (`kafka_seconds`, `save_seconds`), failure emails, `check_pipeline.py` |
+| Partitions sized for parallelism | 3 partitions allow up to 3 [`consumer.py`](pulseguard/services/consumer.py) instances to share the load |
+| Monitor the pipeline itself | timing per step (`kafka_seconds`, `save_seconds`), failure emails, [`check_pipeline.py`](scripts/check_pipeline.py) |
 
 ## 4. Anti-patterns avoided
 
