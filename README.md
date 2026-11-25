@@ -199,13 +199,9 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ![docker compose ps: ZooKeeper, Kafka, PostgreSQL, Kafka UI, Mailpit and Grafana are up and healthy](screenshots/01_docker_ps.png)
 
-**The producer registers 100 patients and sends one reading per patient every second** ([`05_producer.png`](screenshots/05_producer.png))
+**Tests, consumer, alert service and producer running together (about 100 ms from producer to database)** ([`06_all_running.png`](screenshots/06_all_running.png))
 
-![The producer registers 100 patients and sends one reading per patient every second](screenshots/05_producer.png)
-
-**All windows side by side: tests, consumer (about 100 ms from producer to database), alert service, producer** ([`06_all_running.png`](screenshots/06_all_running.png))
-
-![All windows side by side: tests, consumer (about 100 ms from producer to database), alert service, producer](screenshots/06_all_running.png)
+![Tests, consumer, alert service and producer running together (about 100 ms from producer to database)](screenshots/06_all_running.png)
 
 ### 2. Kafka
 
@@ -213,17 +209,9 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ![Topics: heartbeats has 3 partitions, heartbeat-alerts has 1](screenshots/31_kafka_ui_topics.png)
 
-**Each message's key is the patient id, so one patient always goes to the same partition (in order)** ([`33_kafka_ui_messages_keys.png`](screenshots/33_kafka_ui_messages_keys.png))
+**The key is the patient id, so each patient always goes to the same partition (in order)** ([`33_kafka_ui_messages_keys.png`](screenshots/33_kafka_ui_messages_keys.png))
 
-![Each message's key is the patient id, so one patient always goes to the same partition (in order)](screenshots/33_kafka_ui_messages_keys.png)
-
-**Two consumer groups: `heartbeat-savers` (consumer) and `alert-emailers` (alert service)** ([`32_kafka_ui_consumer_groups.png`](screenshots/32_kafka_ui_consumer_groups.png))
-
-![Two consumer groups: heartbeat-savers (consumer) and alert-emailers (alert service)](screenshots/32_kafka_ui_consumer_groups.png)
-
-**The broker: 54 partitions online, none out of sync** ([`30_kafka_ui_brokers.png`](screenshots/30_kafka_ui_brokers.png))
-
-![The broker: 54 partitions online, none out of sync](screenshots/30_kafka_ui_brokers.png)
+![The key is the patient id, so each patient always goes to the same partition (in order)](screenshots/33_kafka_ui_messages_keys.png)
 
 ### 3. Data in PostgreSQL
 
@@ -231,13 +219,13 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ![Saved readings with their status and total_seconds (producer to database, about 0.1 s)](screenshots/13_db_readings.png)
 
-**Rejected readings, with the reason (impossible heart rates from sensor glitches)** ([`14_db_rejected.png`](screenshots/14_db_rejected.png))
+**Rejected readings with the reason (impossible heart rates from sensor glitches)** ([`14_db_rejected.png`](screenshots/14_db_rejected.png))
 
-![Rejected readings, with the reason (impossible heart rates from sensor glitches)](screenshots/14_db_rejected.png)
+![Rejected readings with the reason (impossible heart rates from sensor glitches)](screenshots/14_db_rejected.png)
 
-**Health alerts: who, high or low, how serious, the patient's own limit, the peak, start and end** ([`15_db_alerts.png`](screenshots/15_db_alerts.png))
+**Health alerts: patient, high or low, severity, personal limit, peak, start and end** ([`15_db_alerts.png`](screenshots/15_db_alerts.png))
 
-![Health alerts: who, high or low, how serious, the patient's own limit, the peak, start and end](screenshots/15_db_alerts.png)
+![Health alerts: patient, high or low, severity, personal limit, peak, start and end](screenshots/15_db_alerts.png)
 
 ### 4. Tests
 
@@ -249,67 +237,19 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ![End-to-end self-check through real Kafka and PostgreSQL: 19/19 passed](screenshots/08_self_check.png)
 
-### 5. Health alert emails (to doctors)
-
-**The alert service emails an alert when it starts and when it ends** ([`07_alert_emails_sent.png`](screenshots/07_alert_emails_sent.png))
-
-![The alert service emails an alert when it starts and when it ends](screenshots/07_alert_emails_sent.png)
-
-**CRITICAL: PT-0092's heart rate is LOW (36 bpm, limit 50)** ([`20_email_critical_low.png`](screenshots/20_email_critical_low.png))
-
-![CRITICAL: PT-0092's heart rate is LOW (36 bpm, limit 50)](screenshots/20_email_critical_low.png)
+### 5. Health alert email (to doctors)
 
 **CRITICAL: PT-0052 (senior, age 88) is HIGH, 142 bpm against their personal limit of 112** ([`23_email_critical_high.png`](screenshots/23_email_critical_high.png))
 
 ![CRITICAL: PT-0052 (senior, age 88) is HIGH, 142 bpm against their personal limit of 112](screenshots/23_email_critical_high.png)
 
-**RESOLVED: back to normal after 1 min 10 s** ([`24_email_resolved.png`](screenshots/24_email_resolved.png))
+### 6. Database stopped: automatic recovery
 
-![RESOLVED: back to normal after 1 min 10 s](screenshots/24_email_resolved.png)
+**After `docker start hb-postgres` the held batch is saved, both parts carry on, and BACK ONLINE emails are sent** ([`11_back_online.png`](screenshots/11_back_online.png))
 
-**Self-check test patients only email the IT team, marked [TEST]** ([`21_email_selfcheck_raised.png`](screenshots/21_email_selfcheck_raised.png))
-
-![Self-check test patients only email the IT team, marked [TEST]](screenshots/21_email_selfcheck_raised.png)
-
-### 6. Failure and automatic recovery (database stopped)
-
-**`docker stop hb-postgres`: the consumer holds its batch and retries every 10 s instead of crashing** ([`10_database_down.png`](screenshots/10_database_down.png))
-
-![docker stop hb-postgres: the consumer holds its batch and retries every 10 s instead of crashing](screenshots/10_database_down.png)
-
-**SYSTEM PROBLEM email to the IT team, in plain words, with the technical details at the bottom** ([`25_email_problem_consumer.png`](screenshots/25_email_problem_consumer.png))
-
-![SYSTEM PROBLEM email to the IT team, in plain words, with the technical details at the bottom](screenshots/25_email_problem_consumer.png)
-
-**The alert service sends its own SYSTEM PROBLEM email** ([`26_email_problem_alert_service.png`](screenshots/26_email_problem_alert_service.png))
-
-![The alert service sends its own SYSTEM PROBLEM email](screenshots/26_email_problem_alert_service.png)
-
-**`docker start hb-postgres`: the held batch is saved and both parts carry on by themselves** ([`11_back_online.png`](screenshots/11_back_online.png))
-
-![docker start hb-postgres: the held batch is saved and both parts carry on by themselves](screenshots/11_back_online.png)
-
-**BACK ONLINE: heart rates are being checked again (was down 52 s)** ([`28_email_back_online_consumer.png`](screenshots/28_email_back_online_consumer.png))
-
-![BACK ONLINE: heart rates are being checked again (was down 52 s)](screenshots/28_email_back_online_consumer.png)
-
-**BACK ONLINE: health alert emails are being sent again (was down 38 s)** ([`27_email_back_online_alerts.png`](screenshots/27_email_back_online_alerts.png))
-
-![BACK ONLINE: health alert emails are being sent again (was down 38 s)](screenshots/27_email_back_online_alerts.png)
+![After docker start hb-postgres the held batch is saved, both parts carry on, and BACK ONLINE emails are sent](screenshots/11_back_online.png)
 
 ### 7. Grafana dashboard
-
-**Readings, patients, low/high and rejected counts, open alerts, alerts emailed** ([`16_grafana_numbers.png`](screenshots/16_grafana_numbers.png))
-
-![Readings, patients, low/high and rejected counts, open alerts, alerts emailed](screenshots/16_grafana_numbers.png)
-
-**Heart rate of all 100 patients** ([`17_grafana_heart_rate.png`](screenshots/17_grafana_heart_rate.png))
-
-![Heart rate of all 100 patients](screenshots/17_grafana_heart_rate.png)
-
-**Readings per minute by status, and the latest low/high readings** ([`18_grafana_status_and_latest.png`](screenshots/18_grafana_status_and_latest.png))
-
-![Readings per minute by status, and the latest low/high readings](screenshots/18_grafana_status_and_latest.png)
 
 **Seconds per step: the spike at 17:04 is the database outage; readings waited in Kafka and nothing was lost** ([`19_grafana_seconds_per_step.png`](screenshots/19_grafana_seconds_per_step.png))
 
