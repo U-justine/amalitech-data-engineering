@@ -104,4 +104,5 @@ def test_health_alert_email_is_short(mail_server):
     send_health_alert("opened", episode)
     body = mail_server[0]["body"]
     assert body.startswith("PT-0007 (athlete, age 20): heart rate HIGH for 30+ seconds.")   # key fact first
-    assert len(body.strip().splitlines()) <= 6
+    assert len(body.strip().splitlines()) <= 10                     # short enough to read at a glance
+    assert "(UTC+" in body or "(UTC-" in body                       # the time says which time zone

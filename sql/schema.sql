@@ -83,8 +83,11 @@ CREATE TABLE IF NOT EXISTS alert_episodes (
     started_at      TIMESTAMPTZ  NOT NULL,                  -- first reading out of range
     ended_at        TIMESTAMPTZ,                            -- NULL while still going on
     opened_email_at TIMESTAMPTZ,                            -- when the alert email was sent
-    closed_email_at TIMESTAMPTZ                             -- when the "back to normal" email was sent
+    closed_email_at TIMESTAMPTZ,                            -- when the "back to normal" email was sent
+    emailed_severity VARCHAR(8)                             -- severity in the last email (warning -> critical = new email)
 );
+-- Databases made before emailed_severity existed get the column too.
+ALTER TABLE alert_episodes ADD COLUMN IF NOT EXISTS emailed_severity VARCHAR(8);
 CREATE INDEX IF NOT EXISTS episodes_open_idx ON alert_episodes (customer_id) WHERE ended_at IS NULL;
 
 -- Shortcut: health alerts still going on.

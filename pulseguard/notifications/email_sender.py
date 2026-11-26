@@ -36,8 +36,10 @@ def send_email(subject, body, to=None):
 
 
 def when(moment=None):
-    """A short, readable local time: 25 Nov 2026, 17:08."""
-    return (moment.astimezone() if moment else datetime.now()).strftime("%d %b %Y, %H:%M")
+    """A short, readable local time with its time zone: 25 Nov 2026, 17:08 (UTC+02:00)."""
+    local = moment.astimezone() if moment else datetime.now().astimezone()
+    offset = local.strftime("%z")                     # e.g. +0200
+    return f"{local:%d %b %Y, %H:%M} (UTC{offset[:3]}:{offset[3:]})"
 
 
 def how_long(seconds):

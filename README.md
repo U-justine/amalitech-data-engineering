@@ -35,7 +35,7 @@ stays out of range, or when the pipeline itself fails.
    - publishes each alert to the Kafka topic **`heartbeat-alerts`**
    - only then commits the Kafka offset, so nothing is ever lost
 3. **[`alert_service.py`](pulseguard/services/alert_service.py)** (group `alert-emailers`) reads `heartbeat-alerts` and emails each
-   alert once when it starts and once when it ends (**[`health_alerts.py`](pulseguard/notifications/health_alerts.py)**). Emails it can't send are retried.
+   alert once when it starts, once more if it gets worse (WARNING to CRITICAL), and once when it ends (**[`health_alerts.py`](pulseguard/notifications/health_alerts.py)**). Emails it can't send are retried.
 4. **Failure emails:** if the consumer, producer, alert service or pipeline check fails, it emails
    a **system problem** email to the IT team (`SYSTEM_ALERT_TO`), written in plain words: what
    stopped, why, and whether data is lost, with the technical error only at the bottom.

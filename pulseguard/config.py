@@ -31,6 +31,8 @@ POSSIBLE_MAX = 230   # above -> sensor error, rejected
 EPISODE_MIN_SECONDS = int(os.getenv("EPISODE_MIN_SECONDS", "30"))  # out of range this long -> alert
 CRITICAL_ABOVE = 20  # 20+ bpm above the high limit -> "critical"
 CRITICAL_BELOW = 10  # 10+ bpm below the low limit  -> "critical"
+# Grafana dashboard, linked in alert emails (the patient is picked automatically)
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "http://localhost:3000/d/heartbeat-monitor")
 
 # Emails. Default: Mailpit test inbox at http://localhost:8025
 # For Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_TLS=yes, plus an app password.

@@ -134,6 +134,8 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T71 | Spike that dips back to normal restarts the count | Error | PASS |
 | T72 | Switching from high to low closes and starts again | Error | PASS |
 | T73 | Readings with gaps still count by time | Error | PASS |
+| T140 | Warning that gets worse is escalated once | Good | PASS |
+| T141 | Alert that starts critical is not escalated | Good | PASS |
 
 ### Consumer ([consumer.py](pulseguard/services/consumer.py), [batch.py](pulseguard/processing/batch.py))  ([`tests/test_consumer.py`](tests/test_consumer.py))
 
@@ -195,6 +197,9 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T112 | Replayed readings do not create a second alert | Error | PASS |
 | T113 | Email server down then back alert is not lost | Error | PASS |
 | T114 | Alert service failure sends failure email | Error | PASS |
+| T142 | Warning that becomes critical sends one more email (NOW CRITICAL), only once | Good | PASS |
+| T143 | Alert that ends before the escalation email only gets RESOLVED | Error | PASS |
+| T144 | Alert email shows duration, last readings and trend, normal range, chart link | Good | PASS |
 
 ### System problem and back-online emails ([system_alerts.py](pulseguard/notifications/system_alerts.py), [back_online.py](pulseguard/notifications/back_online.py)), sent to a real local email server  ([`tests/test_email.py`](tests/test_email.py), [`tests/test_failure_emails.py`](tests/test_failure_emails.py), [`tests/test_back_online.py`](tests/test_back_online.py), [`tests/test_self_check_report.py`](tests/test_self_check_report.py))
 

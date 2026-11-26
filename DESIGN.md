@@ -45,8 +45,14 @@ flood the inbox, and people would start ignoring it ("alert fatigue").
 PulseGuard raises an alert only when a patient stays out of range for **30 seconds**:
 
 - **one email when it starts** (warning, or critical if 20+ bpm above / 10+ below the limit)
+- **one more email only if it gets worse** (warning becomes critical: "NOW CRITICAL"), so a doctor who
+  read "warning" knows to hurry
 - **one email when it ends** (resolved), with the peak and how long it lasted
-- nothing in between, however many readings arrive
+- nothing else in between, however many readings arrive
+
+Each alert email also shows how long it has lasted, the last 5 readings with a trend (rising,
+falling, steady), the patient's normal range, the time with its time zone, and a link that opens
+the Grafana dashboard with that patient already picked.
 
 Each episode is one row in `alert_episodes`. The time is measured from the readings' own
 timestamps, so the rule still works if some readings were lost or arrive in one batch.

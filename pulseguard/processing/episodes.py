@@ -88,6 +88,8 @@ def update_episodes(state, reading, low_limit, high_limit):
         new_severity = severity_of(kind, current["peak"], low_limit, high_limit)
         if new_severity == "critical" and episode["severity"] == "warning":
             episode["severity"] = "critical"
-        events.append(("updated", dict(episode)))
+            events.append(("escalated", dict(episode)))    # got worse: the doctor must know
+        else:
+            events.append(("updated", dict(episode)))
 
     return events

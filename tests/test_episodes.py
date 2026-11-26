@@ -67,7 +67,7 @@ def test_patients_are_tracked_separately():
 
 def test_ongoing_alert_reports_its_latest_peak():
     events = feed({}, [140] * 31 + [160, 150], keep_updates=True)
-    updates = [e for event, e in events if event == "updated"]
+    updates = [e for event, e in events if event in ("updated", "escalated")]
     assert [u["peak_bpm"] for u in updates] == [160, 160]
     assert updates[-1]["reading_count"] == 33
 
@@ -101,3 +101,19 @@ def test_readings_with_gaps_still_count_by_time():
     feed(state, [140], start_second=0)
     events = feed(state, [140], start_second=35)
     assert [event for event, _ in events] == ["opened"]
+
+
+def test_warning_that_gets_worse_is_escalated_once():
+    """135 (warning) for 31 s, then 155 (20+ above the limit): ONE "escalated" event, then only updates."""
+    events = feed({}, [135] * 31 + [155] * 5, keep_updates=True)
+    kinds = [event for event, _ in events]
+    assert kinds.count("escalated") == 1
+    escalated = next(e for event, e in events if event == "escalated")
+    assert escalated["severity"] == "critical" and escalated["peak_bpm"] == 155
+
+
+def test_alert_that_starts_critical_is_not_escalated():
+    events = feed({}, [160] * 40, keep_updates=True)
+    assert [event for event, _ in events].count("escalated") == 0
+    assert events[0][1]["severity"] == "critical"
+

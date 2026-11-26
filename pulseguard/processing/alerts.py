@@ -40,7 +40,7 @@ def publish_alerts(alert_publisher, events):
     if alert_publisher is None or not events:
         return
     for event, episode in events:
-        if event in ("opened", "closed"):   # "updated" is for the database only
+        if event in ("opened", "escalated", "closed"):   # "updated" is for the database only
             alert_publisher.send(ALERT_TOPIC, key=episode["customer_id"], value={"event": event, **episode})
     alert_publisher.flush()   # make sure Kafka has them before we say "done"
 
@@ -50,6 +50,9 @@ def print_alerts(events):
         if event == "opened":
             print(f"  ALERT {e['severity'].upper()}: {e['customer_id']} heart rate {e['kind']} "
                   f"(limit {e['limit_bpm']}, peak {e['peak_bpm']} bpm) since {e['started_at'].astimezone():%H:%M:%S}")
+        elif event == "escalated":
+            print(f"  ALERT NOW CRITICAL: {e['customer_id']} heart rate {e['kind']} "
+                  f"(limit {e['limit_bpm']}, peak {e['peak_bpm']} bpm)")
         elif event == "closed":
             print(f"  ALERT OVER: {e['customer_id']} back to normal "
                   f"(peak {e['peak_bpm']} bpm, {e['reading_count']} readings)")

@@ -126,3 +126,45 @@ def test_self_check_removes_its_test_patients(db):
     assert rows(db, "SELECT customer_id FROM readings") == [("PT-0001",)]           # real patient kept
     assert rows(db, "SELECT count(*) FROM alert_episodes") == [(0,)]
     assert rows(db, "SELECT count(*) FROM rejected_readings") == [(0,)]
+
+
+# ---------------------------------------------------------------- warning that gets worse, and what the email shows
+
+def test_warning_that_becomes_critical_sends_one_more_email(db, mail_server):
+    """The doctor was told WARNING; when it gets worse they must be told again, once."""
+    save_batch(db, [], [], [("opened", new_episode("PT-0007", "high", START, 130, 140, 31))])
+    assert alert_emailer.send_pending_emails(db) == 1                      # WARNING email
+    worse = new_episode("PT-0007", "high", START, 130, 155, 40)
+    worse["severity"] = "critical"
+    save_batch(db, [], [], [("escalated", worse)])
+    assert alert_emailer.send_pending_emails(db) == 1                      # NOW CRITICAL email
+    assert alert_emailer.send_pending_emails(db) == 0                      # not again
+    assert mail_server[1]["subject"] == ("[PulseGuard] NOW CRITICAL: PT-0007 heart rate HIGH "
+                                         "(155 bpm, limit 130), was WARNING")
+    assert "getting worse" in mail_server[1]["body"]
+
+
+def test_alert_that_ends_before_the_escalation_email_only_gets_resolved(db, mail_server):
+    save_batch(db, [], [], [("opened", new_episode("PT-0007", "high", START, 130, 140, 31))])
+    alert_emailer.send_pending_emails(db)
+    over = new_episode("PT-0007", "high", START, 130, 155, 40)
+    over["severity"], over["ended_at"] = "critical", START + timedelta(seconds=40)
+    save_batch(db, [], [], [("closed", over)])
+    alert_emailer.send_pending_emails(db)
+    assert [m["subject"].split(":")[0] for m in mail_server] == ["[PulseGuard] WARNING", "[PulseGuard] RESOLVED"]
+
+
+def test_alert_email_shows_trend_normal_range_and_chart_link(db, mail_server):
+    with db.cursor() as cur:
+        cur.execute("""INSERT INTO patients (customer_id, profile, age, resting_bpm, low_limit, high_limit)
+                       VALUES ('PT-0007', 'senior', 80, 70, 50, 119)""")
+    readings = [{"customer_id": "PT-0007", "recorded_at": START + timedelta(seconds=s),
+                 "heart_rate": bpm, "status": "high"} for s, bpm in [(30, 128), (31, 135), (32, 141), (33, 142)]]
+    save_batch(db, readings, [], [("opened", new_episode("PT-0007", "high", START, 119, 142, 34))])
+    alert_emailer.send_pending_emails(db)
+    body = mail_server[0]["body"]
+    assert "heart rate HIGH for 33 s." in body                             # from the readings, not a guess
+    assert "Last readings: 128 -> 135 -> 141 -> 142 bpm (rising)" in body
+    assert "Normal for this patient: 50-119 bpm." in body
+    assert "See the chart: http://localhost:3000/d/heartbeat-monitor?var-patient=PT-0007" in body
+

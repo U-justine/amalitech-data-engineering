@@ -5,18 +5,24 @@
 import json
 
 from pulseguard.notifications.health_alerts import send_health_alert
-from pulseguard.storage.alerts_db import episodes_needing_email, mark_emailed
+from pulseguard.storage.alerts_db import episodes_needing_email, mark_emailed, recent_readings
 
 
 def send_pending_emails(conn):
     """Email every alert not emailed yet. Returns how many were sent."""
     sent = 0
     for episode in episodes_needing_email(conn):
+        episode["recent"] = recent_readings(conn, episode["customer_id"], episode["started_at"])
         if episode["opened_email_at"] is None:
             if not send_health_alert("opened", episode):
                 continue                      # retry later
-            mark_emailed(conn, episode["episode_id"], "opened")
+            mark_emailed(conn, episode["episode_id"], "opened", episode["severity"])
             sent += 1
+        elif (episode["ended_at"] is None and episode["severity"] == "critical"
+              and episode.get("emailed_severity") == "warning"):
+            if send_health_alert("escalated", episode):   # got worse since the first email
+                mark_emailed(conn, episode["episode_id"], "escalated", "critical")
+                sent += 1
         if episode["ended_at"] is not None and episode["closed_email_at"] is None:
             if send_health_alert("closed", episode):
                 mark_emailed(conn, episode["episode_id"], "closed")

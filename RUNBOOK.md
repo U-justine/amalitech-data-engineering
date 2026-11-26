@@ -52,7 +52,9 @@ docker compose down -v     # also deletes the database (fresh start)
 
 A patient has stayed outside their own heart rate limits for 30 seconds or more.
 
-1. Read the email: patient, profile and age, the limit crossed, peak bpm and start time.
+1. Read the email: patient, profile and age, how long it has lasted, the last readings and trend
+   (rising / falling / steady), the limit crossed, peak bpm, start time and the patient's normal range.
+   **See the chart** opens Grafana with that patient picked.
 2. **CRITICAL** (20+ bpm above the high limit, or 10+ below the low limit): check on the
    patient straight away.
 3. See the readings:
@@ -60,7 +62,9 @@ A patient has stayed outside their own heart rate limits for 30 seconds or more.
    SELECT recorded_at, heart_rate, status FROM readings
    WHERE customer_id = 'PT-0007' ORDER BY recorded_at DESC LIMIT 60;
    ```
-4. When the heart rate is back inside the limits you'll get a **RESOLVED** email. No action is needed.
+4. If it gets worse (WARNING becomes CRITICAL) you get one more email,
+   `[PulseGuard] NOW CRITICAL: ... was WARNING`: check on the patient now.
+5. When the heart rate is back inside the limits you'll get a **RESOLVED** email. No action is needed.
 
 ### 4.2 `[PulseGuard] RESOLVED: PT-xxxx heart rate back to normal`
 
