@@ -2,7 +2,7 @@
   "uid": "heartbeat-monitor",
   "title": "PulseGuard",
   "schemaVersion": 39,
-  "version": 6,
+  "version": 7,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
@@ -313,7 +313,10 @@
           "custom": {
             "lineWidth": 1,
             "showPoints": "never",
-            "drawStyle": "line"
+            "drawStyle": "line",
+            "spanNulls": 5000,
+            "lineInterpolation": "smooth",
+            "fillOpacity": 0
           }
         },
         "overrides": [
@@ -399,7 +402,10 @@
           "custom": {
             "lineWidth": 1,
             "showPoints": "never",
-            "drawStyle": "line"
+            "drawStyle": "line",
+            "spanNulls": 5000,
+            "lineInterpolation": "smooth",
+            "fillOpacity": 0
           }
         },
         "overrides": [
@@ -485,7 +491,10 @@
           "custom": {
             "lineWidth": 1,
             "showPoints": "never",
-            "drawStyle": "line"
+            "drawStyle": "line",
+            "spanNulls": 5000,
+            "lineInterpolation": "smooth",
+            "fillOpacity": 0
           }
         },
         "overrides": [
