@@ -2,7 +2,7 @@
   "uid": "heartbeat-monitor",
   "title": "PulseGuard",
   "schemaVersion": 39,
-  "version": 4,
+  "version": 5,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
@@ -270,7 +270,7 @@
     {
       "id": 16,
       "type": "state-timeline",
-      "title": "Patients out of range in this time range (orange = high, blue = low, green = normal)",
+      "title": "Patients out of range in this time range",
       "description": "Only patients who were high or low for most of a 10-second step at least once in the time range. Single glitches don't count. Empty = every patient stayed within their limits.",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -310,14 +310,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "blue",
-                "value": 1
-              },
-              {
-                "color": "orange",
-                "value": 2
               }
             ]
           },
