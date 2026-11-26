@@ -255,6 +255,10 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ![Grafana: 87,050 readings from 100 patients in 15 minutes, 1,670 low or high, 850 rejected, 2 health alerts open right now and 13 alert emails sent](screenshots/12_grafana_dashboard.png)
 
+**Pipeline timing, last minute: producer to consumer 20 ms, consumer to database 60 ms, total trip 79 ms, and 95% of readings under 158 ms** ([`13_grafana_pipeline_timing.png`](screenshots/13_grafana_pipeline_timing.png))
+
+![Pipeline timing, last minute: producer to consumer 20 ms, consumer to database 60 ms, total trip 79 ms, and 95% of readings under 158 ms](screenshots/13_grafana_pipeline_timing.png)
+
 ## Timing: how long each step takes
 
 The **producer** prints how long each round of sends takes and the overall readings per second.
