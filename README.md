@@ -264,6 +264,18 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ![Pipeline timing, last minute: producer to consumer 20 ms, consumer to database 60 ms, total trip 79 ms, and 95% of readings under 158 ms](screenshots/13_grafana_pipeline_timing.png)
 
+**Athletes: resting around 50 bpm, rising to about 120 during exercise; their low limit is 40, not 50** ([`14_grafana_athletes.png`](screenshots/14_grafana_athletes.png))
+
+![Athletes: resting around 50 bpm, rising to about 120 during exercise; their low limit is 40, not 50](screenshots/14_grafana_athletes.png)
+
+**Adults: the largest group, mostly between 60 and 120 bpm** ([`15_grafana_adults.png`](screenshots/15_grafana_adults.png))
+
+![Adults: the largest group, mostly between 60 and 120 bpm](screenshots/15_grafana_adults.png)
+
+**Seniors: lower high limits; one patient stayed around 35-40 bpm for about 25 seconds (bottom left). The thin spikes in all three charts are single sensor glitches, which never cause an alert** ([`16_grafana_seniors.png`](screenshots/16_grafana_seniors.png))
+
+![Seniors: lower high limits; one patient stayed around 35-40 bpm for about 25 seconds (bottom left). The thin spikes in all three charts are single sensor glitches, which never cause an alert](screenshots/16_grafana_seniors.png)
+
 ## Timing: how long each step takes
 
 The **producer** prints how long each round of sends takes and the overall readings per second.
