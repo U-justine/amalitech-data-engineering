@@ -251,9 +251,9 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ### 7. Grafana dashboard
 
-**Seconds per step: the spike at 17:04 is the database outage; readings waited in Kafka and nothing was lost** ([`12_grafana_seconds_per_step.png`](screenshots/12_grafana_seconds_per_step.png))
+**Grafana: 87,050 readings from 100 patients in 15 minutes, 1,670 low or high, 850 rejected, 2 health alerts open right now and 13 alert emails sent** ([`12_grafana_dashboard.png`](screenshots/12_grafana_dashboard.png))
 
-![Seconds per step: the spike at 17:04 is the database outage; readings waited in Kafka and nothing was lost](screenshots/12_grafana_seconds_per_step.png)
+![Grafana: 87,050 readings from 100 patients in 15 minutes, 1,670 low or high, 850 rejected, 2 health alerts open right now and 13 alert emails sent](screenshots/12_grafana_dashboard.png)
 
 ## Timing: how long each step takes
 
