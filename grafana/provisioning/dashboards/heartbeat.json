@@ -2,7 +2,7 @@
   "uid": "heartbeat-monitor",
   "title": "PulseGuard",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
@@ -194,6 +194,80 @@
       }
     },
     {
+      "id": 10,
+      "type": "table",
+      "title": "Open health alerts",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT * FROM open_alerts WHERE customer_id NOT LIKE 'TEST-%'"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Alerts emailed (range)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) FROM alert_episodes WHERE customer_id NOT LIKE 'TEST-%' AND opened_email_at IS NOT NULL AND $__timeFilter(started_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
       "id": 5,
       "type": "timeseries",
       "title": "Heart rate by patient",
@@ -298,6 +372,307 @@
       ]
     },
     {
+      "id": 12,
+      "type": "stat",
+      "title": "Producer → consumer (ms, last minute)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 31
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(kafka_seconds) * 1000 FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND saved_at > now() - interval '60 seconds'"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "ms",
+          "decimals": 0,
+          "noValue": "no data in the last minute",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "Average time from the producer sending a reading until the consumer receives it from Kafka"
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Consumer → database (ms, last minute)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 31
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(save_seconds) * 1000 FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND saved_at > now() - interval '60 seconds'"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "ms",
+          "decimals": 0,
+          "noValue": "no data in the last minute",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "Average time from the consumer receiving a reading until PostgreSQL has saved it"
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Total trip (ms, last minute)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 31
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(total_seconds) * 1000 FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND saved_at > now() - interval '60 seconds'"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "ms",
+          "decimals": 0,
+          "noValue": "no data in the last minute",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "Average time from the producer sending a reading until it is saved in PostgreSQL"
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "Slowest 5% (ms, last minute)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 31
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY total_seconds) * 1000 FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND saved_at > now() - interval '60 seconds'"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "ms",
+          "decimals": 0,
+          "noValue": "no data in the last minute",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "description": "95% of readings took less than this, from producer to database"
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Milliseconds per step (producer → consumer → database, per 10 s)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(saved_at,'10s'), avg(kafka_seconds) * 1000 AS \"producer -> consumer\", avg(save_seconds) * 1000 AS \"consumer -> database\", avg(total_seconds) * 1000 AS \"total\" FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(saved_at) GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 8,
       "type": "table",
       "title": "Latest reading per customer",
@@ -309,7 +684,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 43
       },
       "targets": [
         {
@@ -324,117 +699,6 @@
           "rawSql": "SELECT * FROM latest_readings WHERE customer_id NOT LIKE 'TEST-%'"
         }
       ]
-    },
-    {
-      "id": 9,
-      "type": "timeseries",
-      "title": "Seconds per step (producer \u2192 consumer \u2192 database)",
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "heartbeat-pg"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 31
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "heartbeat-pg"
-          },
-          "refId": "A",
-          "rawQuery": true,
-          "editorMode": "code",
-          "format": "time_series",
-          "rawSql": "SELECT $__timeGroupAlias(saved_at,'1m'), avg(kafka_seconds) AS \"producer -> consumer\", avg(save_seconds) AS \"consumer -> database\", avg(total_seconds) AS \"total\" FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(saved_at) GROUP BY 1 ORDER BY 1"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 2
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 10,
-      "type": "table",
-      "title": "Open health alerts",
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "heartbeat-pg"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 16,
-        "x": 0,
-        "y": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "heartbeat-pg"
-          },
-          "refId": "A",
-          "rawQuery": true,
-          "editorMode": "code",
-          "format": "table",
-          "rawSql": "SELECT * FROM open_alerts WHERE customer_id NOT LIKE 'TEST-%'"
-        }
-      ]
-    },
-    {
-      "id": 11,
-      "type": "stat",
-      "title": "Alerts emailed (range)",
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "heartbeat-pg"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "heartbeat-pg"
-          },
-          "refId": "A",
-          "rawQuery": true,
-          "editorMode": "code",
-          "format": "table",
-          "rawSql": "SELECT count(*) FROM alert_episodes WHERE customer_id NOT LIKE 'TEST-%' AND opened_email_at IS NOT NULL AND $__timeFilter(started_at)"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "red"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "value",
-        "graphMode": "none"
-      }
     }
   ]
 }

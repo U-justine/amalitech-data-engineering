@@ -269,6 +269,12 @@ Every reading also stores its timing in the database (`kafka_seconds`, `save_sec
 the producer, the first delays are large because messages were waiting in Kafka; once it
 catches up they drop to milliseconds.
 
+**In Grafana** (<http://localhost:3000>), the "Pipeline timing" row shows four live numbers for the
+last minute, in milliseconds: producer → consumer, consumer → database, the total trip, and the
+slowest 5%. Green is under 1 second, orange under 5 seconds, red above. Below them, the
+"Milliseconds per step" chart shows the same steps every 10 seconds, so a slow-down or an outage
+stands out as a spike.
+
 ## Tests
 
 | Kind | Command | What it proves |
