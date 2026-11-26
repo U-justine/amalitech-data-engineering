@@ -160,8 +160,8 @@ docker exec -i hb-postgres psql -U heartbeat -d heartbeat < sql/queries.sql
 
 Grafana starts with `docker compose up -d`: open <http://localhost:3000> (admin / admin).
 
-- **Patient status**: one row per patient, green = normal, orange = high, blue = low (10-second steps,
-  so a single glitch stays green). Problems stand out at a glance.
+- **Patients out of range**: one row for each patient who was high or low in the time range, orange = high,
+  blue = low, green = normal (10-second steps, so a single glitch doesn't count). Empty = everyone is fine.
 - **Patient** dropdown (top left): pick one or more patients; the heart rate chart shows only them,
   with their own limits as dashed lines. Pick PT-0007 before running `--emergency PT-0007`.
 

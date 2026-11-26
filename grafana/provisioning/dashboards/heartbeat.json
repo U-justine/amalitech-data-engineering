@@ -2,7 +2,7 @@
   "uid": "heartbeat-monitor",
   "title": "PulseGuard",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
@@ -270,14 +270,14 @@
     {
       "id": 16,
       "type": "state-timeline",
-      "title": "Patient status, all patients (green = normal, orange = high, blue = low)",
-      "description": "One row per patient, in 10-second steps. A step is high or low only if most readings in it were; a single glitch stays green.",
+      "title": "Patients out of range in this time range (orange = high, blue = low, green = normal)",
+      "description": "Only patients who were high or low for most of a 10-second step at least once in the time range. Single glitches don't count. Empty = every patient stayed within their limits.",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "heartbeat-pg"
       },
       "gridPos": {
-        "h": 30,
+        "h": 12,
         "w": 24,
         "x": 0,
         "y": 12
@@ -292,7 +292,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "time_series",
-          "rawSql": "SELECT $__timeGroupAlias(recorded_at,'10s'), customer_id AS metric, CASE WHEN avg((status = 'high')::int) >= 0.5 THEN 2 WHEN avg((status = 'low')::int) >= 0.5 THEN 1 ELSE 0 END AS value FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(recorded_at) GROUP BY 1, 2 ORDER BY 1, 2"
+          "rawSql": "WITH steps AS (SELECT $__timeGroupAlias(recorded_at,'10s'), customer_id AS metric, CASE WHEN avg((status = 'high')::int) >= 0.5 THEN 2 WHEN avg((status = 'low')::int) >= 0.5 THEN 1 ELSE 0 END AS value FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(recorded_at) GROUP BY 1, 2) SELECT * FROM steps WHERE metric IN (SELECT metric FROM steps WHERE value > 0) ORDER BY 1, 2"
         }
       ],
       "fieldConfig": {
@@ -310,6 +310,14 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "blue",
+                "value": 1
+              },
+              {
+                "color": "orange",
+                "value": 2
               }
             ]
           },
@@ -334,7 +342,8 @@
                 }
               }
             }
-          ]
+          ],
+          "noValue": "All patients within their limits"
         },
         "overrides": []
       },
@@ -366,7 +375,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 24
       },
       "targets": [
         {
@@ -439,7 +448,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 53
+        "y": 35
       },
       "targets": [
         {
@@ -479,7 +488,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 53
+        "y": 35
       },
       "targets": [
         {
@@ -507,7 +516,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 61
+        "y": 43
       },
       "targets": [
         {
@@ -573,7 +582,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 61
+        "y": 43
       },
       "targets": [
         {
@@ -639,7 +648,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 61
+        "y": 43
       },
       "targets": [
         {
@@ -705,7 +714,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 61
+        "y": 43
       },
       "targets": [
         {
@@ -771,7 +780,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 47
       },
       "targets": [
         {
@@ -808,7 +817,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 55
       },
       "targets": [
         {
