@@ -2,7 +2,7 @@
   "uid": "heartbeat-monitor",
   "title": "PulseGuard",
   "schemaVersion": 39,
-  "version": 5,
+  "version": 6,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
@@ -268,16 +268,16 @@
       }
     },
     {
-      "id": 16,
-      "type": "state-timeline",
-      "title": "Patients out of range in this time range",
-      "description": "Only patients who were high or low for most of a 10-second step at least once in the time range. Single glitches don't count. Empty = every patient stayed within their limits.",
+      "id": 5,
+      "type": "timeseries",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "heartbeat-pg"
       },
+      "title": "Heart rate: Athletes (age 18-40, low limit 40)",
+      "description": "Patients of this profile picked in the Patient dropdown. Pick 5 or fewer to also see their own limits as dashed lines.",
       "gridPos": {
-        "h": 12,
+        "h": 9,
         "w": 24,
         "x": 0,
         "y": 12
@@ -292,94 +292,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "time_series",
-          "rawSql": "WITH steps AS (SELECT $__timeGroupAlias(recorded_at,'10s'), customer_id AS metric, CASE WHEN avg((status = 'high')::int) >= 0.5 THEN 2 WHEN avg((status = 'low')::int) >= 0.5 THEN 1 ELSE 0 END AS value FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND $__timeFilter(recorded_at) GROUP BY 1, 2) SELECT * FROM steps WHERE metric IN (SELECT metric FROM steps WHERE value > 0) ORDER BY 1, 2"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "lineWidth": 0,
-            "fillOpacity": 85
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "Normal",
-                  "color": "green",
-                  "index": 0
-                },
-                "1": {
-                  "text": "Low",
-                  "color": "blue",
-                  "index": 1
-                },
-                "2": {
-                  "text": "High",
-                  "color": "orange",
-                  "index": 2
-                }
-              }
-            }
-          ],
-          "noValue": "All patients within their limits"
-        },
-        "overrides": []
-      },
-      "options": {
-        "mergeValues": true,
-        "showValue": "never",
-        "alignValue": "left",
-        "rowHeight": 0.85,
-        "legend": {
-          "showLegend": true,
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      }
-    },
-    {
-      "id": 5,
-      "type": "timeseries",
-      "title": "Heart rate of the patients picked at the top (dashed = their own limits)",
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "heartbeat-pg"
-      },
-      "gridPos": {
-        "h": 11,
-        "w": 24,
-        "x": 0,
-        "y": 24
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "heartbeat-pg"
-          },
-          "refId": "A",
-          "rawQuery": true,
-          "editorMode": "code",
-          "format": "time_series",
-          "rawSql": "SELECT recorded_at AS time, customer_id AS metric, heart_rate AS value FROM readings WHERE customer_id NOT LIKE 'TEST-%' AND customer_id IN ($patient) AND $__timeFilter(recorded_at) ORDER BY 1"
+          "rawSql": "SELECT r.recorded_at AS time, r.customer_id AS metric, r.heart_rate AS value FROM readings r JOIN patients p USING (customer_id) WHERE p.profile = 'athlete' AND r.customer_id IN ($patient) AND $__timeFilter(r.recorded_at) ORDER BY 1"
         },
         {
           "datasource": {
@@ -390,14 +303,15 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "time_series",
-          "rawSql": "SELECT t.time, p.customer_id || ' high limit' AS metric, p.high_limit AS value FROM patients p CROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t(time) WHERE p.customer_id IN ($patient) UNION ALL SELECT t.time, p.customer_id || ' low limit', p.low_limit FROM patients p CROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t(time) WHERE p.customer_id IN ($patient) ORDER BY 1"
+          "rawSql": "SELECT t.time, p.customer_id || ' high limit' AS metric, p.high_limit AS value FROM patients p CROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t(time) WHERE p.profile = 'athlete' AND p.customer_id IN ($patient) AND (SELECT count(*) FROM patients WHERE customer_id IN ($patient)) <= 5 UNION ALL SELECT t.time, p.customer_id || ' low limit', p.low_limit FROM patients p CROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t(time) WHERE p.profile = 'athlete' AND p.customer_id IN ($patient) AND (SELECT count(*) FROM patients WHERE customer_id IN ($patient)) <= 5 ORDER BY 1"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "none",
+          "noValue": "No patient of this group picked",
           "custom": {
-            "lineWidth": 2,
+            "lineWidth": 1,
             "showPoints": "never",
             "drawStyle": "line"
           }
@@ -421,11 +335,194 @@
               },
               {
                 "id": "custom.lineWidth",
-                "value": 1
+                "value": 2
               }
             ]
           }
         ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "title": "Heart rate: Adults (age 25-64)",
+      "description": "Patients of this profile picked in the Patient dropdown. Pick 5 or fewer to also see their own limits as dashed lines.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT r.recorded_at AS time, r.customer_id AS metric, r.heart_rate AS value FROM readings r JOIN patients p USING (customer_id) WHERE p.profile = 'adult' AND r.customer_id IN ($patient) AND $__timeFilter(r.recorded_at) ORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "B",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT t.time, p.customer_id || ' high limit' AS metric, p.high_limit AS value FROM patients p CROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t(time) WHERE p.profile = 'adult' AND p.customer_id IN ($patient) AND (SELECT count(*) FROM patients WHERE customer_id IN ($patient)) <= 5 UNION ALL SELECT t.time, p.customer_id || ' low limit', p.low_limit FROM patients p CROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t(time) WHERE p.profile = 'adult' AND p.customer_id IN ($patient) AND (SELECT count(*) FROM patients WHERE customer_id IN ($patient)) <= 5 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No patient of this group picked",
+          "custom": {
+            "lineWidth": 1,
+            "showPoints": "never",
+            "drawStyle": "line"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* limit$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "heartbeat-pg"
+      },
+      "title": "Heart rate: Seniors (age 65-90)",
+      "description": "Patients of this profile picked in the Patient dropdown. Pick 5 or fewer to also see their own limits as dashed lines.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "A",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT r.recorded_at AS time, r.customer_id AS metric, r.heart_rate AS value FROM readings r JOIN patients p USING (customer_id) WHERE p.profile = 'senior' AND r.customer_id IN ($patient) AND $__timeFilter(r.recorded_at) ORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "heartbeat-pg"
+          },
+          "refId": "B",
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT t.time, p.customer_id || ' high limit' AS metric, p.high_limit AS value FROM patients p CROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t(time) WHERE p.profile = 'senior' AND p.customer_id IN ($patient) AND (SELECT count(*) FROM patients WHERE customer_id IN ($patient)) <= 5 UNION ALL SELECT t.time, p.customer_id || ' low limit', p.low_limit FROM patients p CROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t(time) WHERE p.profile = 'senior' AND p.customer_id IN ($patient) AND (SELECT count(*) FROM patients WHERE customer_id IN ($patient)) <= 5 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "No patient of this group picked",
+          "custom": {
+            "lineWidth": 1,
+            "showPoints": "never",
+            "drawStyle": "line"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* limit$"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       }
     },
     {
@@ -440,7 +537,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 39
       },
       "targets": [
         {
@@ -480,7 +577,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 39
       },
       "targets": [
         {
@@ -508,7 +605,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 43
+        "y": 47
       },
       "targets": [
         {
@@ -574,7 +671,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 43
+        "y": 47
       },
       "targets": [
         {
@@ -640,7 +737,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 43
+        "y": 47
       },
       "targets": [
         {
@@ -706,7 +803,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 43
+        "y": 47
       },
       "targets": [
         {
@@ -772,7 +869,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 51
       },
       "targets": [
         {
@@ -809,7 +906,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 55
+        "y": 59
       },
       "targets": [
         {
@@ -845,18 +942,10 @@
         "current": {
           "selected": true,
           "text": [
-            "PT-0001",
-            "PT-0002",
-            "PT-0003",
-            "PT-0004",
-            "PT-0005"
+            "All"
           ],
           "value": [
-            "PT-0001",
-            "PT-0002",
-            "PT-0003",
-            "PT-0004",
-            "PT-0005"
+            "$__all"
           ]
         },
         "options": []

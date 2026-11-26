@@ -160,10 +160,10 @@ docker exec -i hb-postgres psql -U heartbeat -d heartbeat < sql/queries.sql
 
 Grafana starts with `docker compose up -d`: open <http://localhost:3000> (admin / admin).
 
-- **Patients out of range**: one row for each patient who was high or low in the time range, orange = high,
-  blue = low, green = normal (10-second steps, so a single glitch doesn't count). Empty = everyone is fine.
-- **Patient** dropdown (top left): pick one or more patients; the heart rate chart shows only them,
-  with their own limits as dashed lines. Pick PT-0007 before running `--emergency PT-0007`.
+- **Heart rate, one chart per profile**: athletes (18-40), adults (25-64) and seniors (65-90), so each
+  group is readable on its own.
+- **Patient** dropdown (top left, All by default): pick 5 or fewer patients to see only them, with their
+  own limits as dashed lines. Pick PT-0007 before running `--emergency PT-0007`.
 
 **6. Stop**: Ctrl+C in each window, then `docker compose down` (or `down -v` to delete the database).
 
