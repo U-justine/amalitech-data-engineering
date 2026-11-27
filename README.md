@@ -137,6 +137,8 @@ python -m venv .venv
 pip install -r requirements-dev.txt
 ```
 
+([`requirements-dev.txt`](requirements-dev.txt) includes [`requirements.txt`](requirements.txt) plus the test tools.)
+
 **3. Start the three programs, each in its own window** (run `.venv\Scripts\activate` in each)
 
 ```powershell
@@ -159,6 +161,8 @@ emailed then. Set `EMAIL_MIN_SEVERITY=warning` in `.env` to email every alert.
 docker exec -it hb-postgres psql -U heartbeat -d heartbeat -c "SELECT * FROM open_alerts;"
 docker exec -i hb-postgres psql -U heartbeat -d heartbeat < sql/queries.sql
 ```
+
+The second command runs every query in [`sql/queries.sql`](sql/queries.sql).
 
 **5. Dashboard**
 

@@ -22,6 +22,8 @@ producer.py ──► [heartbeats: P0 P1 P2] ──► consumer.py (group heartb
                                                 └──► [heartbeat-alerts: P0] ──► alert_service.py (group alert-emailers) ──► email
 ```
 
+Files: [`producer.py`](pulseguard/services/producer.py), [`consumer.py`](pulseguard/services/consumer.py), [`alert_service.py`](pulseguard/services/alert_service.py).
+
 Two topics and two consumer groups mean alert emailing is **independent** of saving readings.
 If emailing is slow or down, readings are still saved. More alert subscribers (SMS, a pager)
 could be added later as new consumer groups, without changing [`consumer.py`](pulseguard/services/consumer.py).
