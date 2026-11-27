@@ -2,8 +2,11 @@
 #   - The database says WHAT still needs an email.
 #   - After sending, the alert is marked "emailed" -> never sent twice.
 #   - Email failed? It stays unmarked and is tried again later -> never lost.
+#   - EMAIL_MIN_SEVERITY=critical (default): only CRITICAL alerts are emailed (fewer emails, less
+#     "alarm fatigue"); warnings are still saved and shown in Grafana.
 import json
 
+from pulseguard import config
 from pulseguard.notifications.health_alerts import send_health_alert
 from pulseguard.storage.alerts_db import episodes_needing_email, mark_emailed, recent_readings
 
@@ -11,7 +14,7 @@ from pulseguard.storage.alerts_db import episodes_needing_email, mark_emailed, r
 def send_pending_emails(conn):
     """Email every alert not emailed yet. Returns how many were sent."""
     sent = 0
-    for episode in episodes_needing_email(conn):
+    for episode in episodes_needing_email(conn, config.EMAIL_MIN_SEVERITY):
         episode["recent"] = recent_readings(conn, episode["customer_id"], episode["started_at"])
         if episode["opened_email_at"] is None:
             if not send_health_alert("opened", episode):

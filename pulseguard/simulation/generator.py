@@ -22,13 +22,16 @@ def start_watching(patient):
     return patient
 
 
-def start_medical_event(patient, kind="high", seconds=60):
-    """Send the heart rate out of range and keep it there."""
+def start_medical_event(patient, kind="high", seconds=60, serious=False):
+    """Send the heart rate out of range and keep it there.
+    serious=True: far enough out to be CRITICAL (used by --emergency, so the demo always emails)."""
     patient["event_left"] = seconds
     if kind == "high":
-        patient["event_target"] = patient["high_limit"] + random.randint(12, 30)
+        extra = random.randint(22, 32) if serious else random.randint(12, 30)
+        patient["event_target"] = patient["high_limit"] + extra
     else:
-        patient["event_target"] = max(30, patient["low_limit"] - random.randint(6, 12))
+        below = random.randint(12, 16) if serious else random.randint(6, 12)
+        patient["event_target"] = max(30, patient["low_limit"] - below)
 
 
 def next_heart_rate(patient, event_chance=0.0):
@@ -93,7 +96,7 @@ def start_emergencies(patients, patient_ids, kind):
         patient = next((p for p in patients if p["customer_id"] == patient_id), None)
         if patient is None:
             raise SystemExit(f"--emergency: no patient called {patient_id}")
-        start_medical_event(patient, kind, seconds=75)
+        start_medical_event(patient, kind, seconds=75, serious=True)
         print(f"EMERGENCY: {patient_id} ({patient['profile']}, age {patient['age']}, "
               f"limits {patient['low_limit']}-{patient['high_limit']} bpm) heart rate will go "
               f"{kind} for 75 seconds")

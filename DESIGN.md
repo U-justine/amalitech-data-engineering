@@ -54,6 +54,13 @@ Each alert email also shows how long it has lasted, the last 5 readings with a t
 falling, steady), the patient's normal range, the time with its time zone, and a link that opens
 the Grafana dashboard with that patient already picked.
 
+**Only CRITICAL alerts are emailed by default** (`EMAIL_MIN_SEVERITY=critical`). Hospitals tier alarms
+the same way: urgent ones interrupt someone, the rest go on a screen. Every alert is still saved
+and shown in Grafana, a WARNING that becomes CRITICAL is emailed at that moment, and an alert that
+was never emailed gets no RESOLVED email either. The simulation's default event rate is also set
+to a realistic level (about 4 medical events an hour for 100 patients); `--emergency` always
+creates a CRITICAL event, so a demo still produces an email.
+
 Each episode is one row in `alert_episodes`. The time is measured from the readings' own
 timestamps, so the rule still works if some readings were lost or arrive in one batch.
 

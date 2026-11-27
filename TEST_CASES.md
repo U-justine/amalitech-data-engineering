@@ -47,6 +47,7 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T04 | Medical event goes above high limit and stays | Good | PASS |
 | T05 | Medical event low | Good | PASS |
 | T06 | Glitches happen at the bad chance rate | Good | PASS |
+| T148 | Demo emergency (`--emergency`) is always critical | Good | PASS |
 
 ### Patient profiles and personal limits ([patients.py](pulseguard/simulation/patients.py))  ([`tests/test_patients.py`](tests/test_patients.py))
 
@@ -200,6 +201,9 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T142 | Warning that becomes critical sends one more email (NOW CRITICAL), only once | Good | PASS |
 | T143 | Alert that ends before the escalation email only gets RESOLVED | Error | PASS |
 | T144 | Alert email shows duration, last readings and trend, normal range, chart link | Good | PASS |
+| T145 | Only critical alerts are emailed by default | Good | PASS |
+| T146 | Warning that becomes critical is emailed as critical | Good | PASS |
+| T147 | Warning that ends sends no email at all (but is still saved) | Error | PASS |
 
 ### System problem and back-online emails ([system_alerts.py](pulseguard/notifications/system_alerts.py), [back_online.py](pulseguard/notifications/back_online.py)), sent to a real local email server  ([`tests/test_email.py`](tests/test_email.py), [`tests/test_failure_emails.py`](tests/test_failure_emails.py), [`tests/test_back_online.py`](tests/test_back_online.py), [`tests/test_self_check_report.py`](tests/test_self_check_report.py))
 

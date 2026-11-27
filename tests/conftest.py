@@ -115,3 +115,6 @@ def separate_state_folder(tmp_path, monkeypatch):
     so tests never touch the real .pulseguard_state folder."""
     from pulseguard import config
     monkeypatch.setattr(config, "STATE_DIR", str(tmp_path / "state"))
+    # Email warnings too, so the email tests cover every kind of alert email.
+    # (The "only critical" setting has its own tests in test_alert_emails.py.)
+    monkeypatch.setattr(config, "EMAIL_MIN_SEVERITY", "warning")

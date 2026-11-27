@@ -45,6 +45,9 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 ALERT_FROM = os.getenv("ALERT_FROM", "pulseguard@example.com")
 ALERT_TO = os.getenv("ALERT_TO", "oncall@example.com")                 # health alerts -> doctors
 SYSTEM_ALERT_TO = os.getenv("SYSTEM_ALERT_TO", "it-team@example.com")  # system problems -> IT team
+# Which health alerts are emailed: "critical" (default, fewer emails) or "warning" (all).
+# Not-emailed warnings are still saved and shown in Grafana.
+EMAIL_MIN_SEVERITY = os.getenv("EMAIL_MIN_SEVERITY", "critical")
 
 # Folder where a service notes "I am down", so it can email "back online" later
 STATE_DIR = os.getenv("STATE_DIR", ".pulseguard_state")

@@ -59,3 +59,17 @@ def test_glitches_happen_at_the_bad_chance_rate():
     readings = [(p, make_reading(p, bad_chance=0.2)["heart_rate"]) for _ in range(300) for p in patients]
     glitches = sum(1 for p, hr in readings if hr < p["low_limit"] - 4 or hr > p["high_limit"] + 4)
     assert 0.12 < glitches / len(readings) < 0.28
+
+
+def test_demo_emergency_is_always_critical():
+    """--emergency must always give a CRITICAL alert (the only kind emailed by default)."""
+    from pulseguard.simulation.generator import start_emergencies
+    for seed in range(50):
+        random.seed(seed)
+        high = [start_watching(watched(1, high_limit=130, resting_bpm=70))]
+        start_emergencies(high, ["PT-0001"], "high")
+        assert high[0]["event_target"] >= 130 + 20            # 20+ above the limit = critical
+        low = [start_watching(watched(1, low_limit=50, resting_bpm=70))]
+        start_emergencies(low, ["PT-0001"], "low")
+        assert low[0]["event_target"] <= 50 - 10              # 10+ below the limit = critical
+

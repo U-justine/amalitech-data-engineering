@@ -42,7 +42,7 @@ def main():
     parser.add_argument("--patients", "--customers", type=int, default=100, help="how many patients to simulate")
     parser.add_argument("--seconds", type=int, default=0, help="stop after this many seconds (0 = run forever)")
     parser.add_argument("--bad-chance", type=float, default=0.02, help="share of sensor glitches, e.g. 0.02 = 2%%")
-    parser.add_argument("--event-chance", type=float, default=0.0001,
+    parser.add_argument("--event-chance", type=float, default=0.00001,   # about 4 events an hour for 100 patients
                         help="chance per patient per second that a medical event starts")
     parser.add_argument("--emergency", action="append", default=[], metavar="PATIENT_ID",
                         help="start a medical event for this patient right away (can repeat)")

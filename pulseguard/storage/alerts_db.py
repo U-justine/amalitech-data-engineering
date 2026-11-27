@@ -20,15 +20,18 @@ def load_open_episodes(conn):
     return state
 
 
-def episodes_needing_email(conn):
-    """Alerts that still need an email: new, got worse (warning -> critical), or ended."""
+def episodes_needing_email(conn, min_severity="warning"):
+    """Alerts that still need an email: new, got worse (warning -> critical), or ended.
+    min_severity="critical": warnings are not emailed (only shown in Grafana); a warning that
+    becomes critical is emailed then, and RESOLVED is only sent if the alert was emailed."""
+    levels = ("critical",) if min_severity == "critical" else ("warning", "critical")
     with conn.cursor() as cur:
         cur.execute("""SELECT e.*, p.profile, p.age, p.low_limit, p.high_limit
                        FROM alert_episodes e LEFT JOIN patients p USING (customer_id)
-                       WHERE e.opened_email_at IS NULL
+                       WHERE (e.opened_email_at IS NULL AND e.severity IN %s)
                           OR (e.ended_at IS NULL AND e.severity = 'critical' AND e.emailed_severity = 'warning')
-                          OR (e.ended_at IS NOT NULL AND e.closed_email_at IS NULL)
-                       ORDER BY e.started_at""")
+                          OR (e.ended_at IS NOT NULL AND e.closed_email_at IS NULL AND e.opened_email_at IS NOT NULL)
+                       ORDER BY e.started_at""", (levels,))
         columns = [c.name for c in cur.description]
         rows = [dict(zip(columns, row)) for row in cur.fetchall()]
     conn.commit()

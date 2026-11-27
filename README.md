@@ -146,8 +146,12 @@ python -m pulseguard.services.producer             # window 3: 100 patients
 ```
 
 Producer options: `--patients 500`, `--seconds 60`, `--bad-chance 0.1` (more glitches),
-`--event-chance 0.001` (more medical events),
-`--emergency PT-0007` (start a medical event for that patient now), `--emergency-kind low`.
+`--event-chance 0.0001` (more medical events; the default 0.00001 gives about 4 an hour for 100 patients),
+`--emergency PT-0007` (start a CRITICAL medical event for that patient now), `--emergency-kind low`.
+
+**Emails:** by default only **CRITICAL** health alerts are emailed (`EMAIL_MIN_SEVERITY=critical`), to
+avoid alarm fatigue. WARNINGs are still saved and shown in Grafana; a WARNING that becomes CRITICAL is
+emailed then. Set `EMAIL_MIN_SEVERITY=warning` in `.env` to email every alert.
 
 **4. Look at the data**
 

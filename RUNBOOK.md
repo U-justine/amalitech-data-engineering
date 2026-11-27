@@ -51,6 +51,8 @@ docker compose down -v     # also deletes the database (fresh start)
 ### 4.1 `[PulseGuard] WARNING / CRITICAL: PT-xxxx heart rate HIGH / LOW`
 
 A patient has stayed outside their own heart rate limits for 30 seconds or more.
+By default only **CRITICAL** alerts are emailed; WARNINGs appear in Grafana ("Open health alerts").
+To email WARNINGs too, set `EMAIL_MIN_SEVERITY=warning` in `.env` and restart the alert service.
 
 1. Read the email: patient, profile and age, how long it has lasted, the last readings and trend
    (rising / falling / steady), the limit crossed, peak bpm, start time and the patient's normal range.

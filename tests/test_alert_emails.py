@@ -168,3 +168,38 @@ def test_alert_email_shows_trend_normal_range_and_chart_link(db, mail_server):
     assert "Normal for this patient: 50-119 bpm." in body
     assert "See the chart: http://localhost:3000/d/heartbeat-monitor?var-patient=PT-0007" in body
 
+
+# ---------------------------------------------------------------- only CRITICAL alerts emailed (default setting)
+
+def test_only_critical_alerts_are_emailed_by_default(db, mail_server, monkeypatch):
+    monkeypatch.setattr(config, "EMAIL_MIN_SEVERITY", "critical")
+    save_batch(db, [], [], [("opened", new_episode("PT-0007", "high", START, 130, 140, 31))])   # warning
+    assert alert_emailer.send_pending_emails(db) == 0 and mail_server == []
+    critical = new_episode("PT-0008", "high", START, 130, 155, 31)
+    critical["severity"] = "critical"
+    save_batch(db, [], [], [("opened", critical)])
+    assert alert_emailer.send_pending_emails(db) == 1
+    assert mail_server[0]["subject"].startswith("[PulseGuard] CRITICAL: PT-0008")
+
+
+def test_warning_that_becomes_critical_is_emailed_as_critical(db, mail_server, monkeypatch):
+    monkeypatch.setattr(config, "EMAIL_MIN_SEVERITY", "critical")
+    save_batch(db, [], [], [("opened", new_episode("PT-0007", "high", START, 130, 140, 31))])
+    assert alert_emailer.send_pending_emails(db) == 0                      # warning: no email
+    worse = new_episode("PT-0007", "high", START, 130, 155, 40)
+    worse["severity"] = "critical"
+    save_batch(db, [], [], [("escalated", worse)])
+    assert alert_emailer.send_pending_emails(db) == 1                      # now critical: emailed once
+    assert alert_emailer.send_pending_emails(db) == 0
+    assert mail_server[0]["subject"].startswith("[PulseGuard] CRITICAL: PT-0007")
+
+
+def test_warning_that_ends_sends_no_email_at_all(db, mail_server, monkeypatch):
+    """No alert email -> no RESOLVED email either (the doctor never heard about it)."""
+    monkeypatch.setattr(config, "EMAIL_MIN_SEVERITY", "critical")
+    over = new_episode("PT-0007", "high", START, 130, 140, 40)
+    over["ended_at"] = START + timedelta(seconds=40)
+    save_batch(db, [], [], [("closed", over)])
+    assert alert_emailer.send_pending_emails(db) == 0 and mail_server == []
+    assert rows(db, "SELECT count(*) FROM alert_episodes") == [(1,)]       # still saved for Grafana
+
