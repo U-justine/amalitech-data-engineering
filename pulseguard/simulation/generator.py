@@ -2,7 +2,7 @@
 #
 # Three things can happen:
 #   1. Normal life: the rate drifts around the resting rate, sometimes exercise.
-#   2. Medical event (rare): the rate goes out of range and STAYS there -> alert.
+#   2. Medical event (rare): the rate goes out of range and stays there -> alert.
 #   3. Sensor glitch: one bad value (0, 300, or a short spike) -> no alert.
 #
 # Try it:   python -m pulseguard.simulation.generator

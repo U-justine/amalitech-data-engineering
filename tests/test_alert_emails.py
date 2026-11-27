@@ -49,7 +49,7 @@ def test_alert_message_triggers_email_and_is_committed(db, mail_server):
     assert "PT-0003 heart rate LOW (41 bpm, limit 50)" in mail_server[0]["subject"]
 
 
-# ---------------------------------------------------------------- error cases
+# Error cases
 
 def test_short_spike_creates_no_alert_and_no_email(db, mail_server):
     publisher = FakeAlertPublisher()
@@ -102,10 +102,10 @@ def test_alert_service_failure_sends_failure_email(mail_server, monkeypatch):
     assert mail_server[0]["subject"] == "[PulseGuard] SYSTEM PROBLEM: health alert emails are paused (database not reachable)"
 
 
-# ---------------------------------------------------------------- self-check test patients
+# Self-check test patients
 
 def test_test_patient_alert_goes_to_it_team_not_doctors(mail_server):
-    """Self-check patients (TEST-...) are not real: no CRITICAL email to doctors."""
+    """Self-check patients (TEST-...) aren't real, so no CRITICAL email goes to doctors."""
     from pulseguard.notifications.health_alerts import send_health_alert
     episode = new_episode("TEST-ABC123-9", "high", START, 120, 150, 31)
     send_health_alert("opened", episode)
@@ -128,7 +128,7 @@ def test_self_check_removes_its_test_patients(db):
     assert rows(db, "SELECT count(*) FROM rejected_readings") == [(0,)]
 
 
-# ---------------------------------------------------------------- warning that gets worse, and what the email shows
+# Warning that gets worse, and what the email shows
 
 def test_warning_that_becomes_critical_sends_one_more_email(db, mail_server):
     """The doctor was told WARNING; when it gets worse they must be told again, once."""
@@ -169,7 +169,7 @@ def test_alert_email_shows_trend_normal_range_and_chart_link(db, mail_server):
     assert "See the chart: http://localhost:3000/d/heartbeat-monitor?var-patient=PT-0007" in body
 
 
-# ---------------------------------------------------------------- only CRITICAL alerts emailed (default setting)
+# Only CRITICAL alerts emailed (default setting)
 
 def test_only_critical_alerts_are_emailed_by_default(db, mail_server, monkeypatch):
     monkeypatch.setattr(config, "EMAIL_MIN_SEVERITY", "critical")

@@ -1,4 +1,4 @@
-# After a failure, the IT team gets ONE "back online" email when the part works again.
+# After a failure, the IT team gets one "back online" email when the part works again.
 
 import psycopg2
 import pytest
@@ -11,7 +11,7 @@ from pulseguard.services import consumer
 from pulseguard.storage import database
 
 
-# ---------------------------------------------------------------- back online
+# Back online
 
 def test_back_online_email_after_a_failure(mail_server):
     from pulseguard.notifications.back_online import report_back_online
@@ -87,7 +87,7 @@ def test_consumer_down_then_restarted_sends_both_emails(mail_server, monkeypatch
     assert len(subjects) == 2
 
 
-# ---------------------------------------------------------------- error cases (back online)
+# Error cases (back online)
 
 def test_back_online_is_kept_if_email_cannot_be_sent(monkeypatch):
     """If the email server is down too, remember the problem and try again next start."""

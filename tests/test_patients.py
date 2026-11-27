@@ -51,7 +51,7 @@ def test_patients_are_registered_once(db):
     assert len(load_limits(db)) == 8
 
 
-# ---------------------------------------------------------------- error cases
+# Error cases
 
 @pytest.mark.parametrize("profile, age, low, high", [
     pytest.param("child", 30, 50, 150, id="unknown profile"),

@@ -43,7 +43,7 @@ class BrokenDatabase:
         pass
 
 
-# ---------------------------------------------------------------- good cases
+# Good cases
 
 def test_sort_messages():
     good, rejected = sort_messages([msg("A", 0, 70), msg("A", 1, 40), b"{oops", msg("A", 2, 999)], quiet=True)
@@ -97,7 +97,7 @@ def test_timing_text_with_no_messages():
     assert timing_text(new_timing()) == "no new messages"
 
 
-# ---------------------------------------------------------------- error cases
+# Error cases
 
 def test_empty_poll_does_nothing():
     """No new messages: nothing is saved and nothing is committed."""

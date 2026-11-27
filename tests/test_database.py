@@ -21,7 +21,7 @@ def count_rows(db, table):
         return cur.fetchone()[0]
 
 
-# ---------------------------------------------------------------- good cases
+# Good cases
 
 def test_save_good_and_rejected(db):
     saved = save_batch(db, [reading()], [("bad message", "invalid_json")])
@@ -66,7 +66,7 @@ def test_timing_per_minute_view(db):
     assert count == 3 and avg_kafka == Decimal("1.000")
 
 
-# ---------------------------------------------------------------- error cases
+# Error cases
 
 @pytest.mark.parametrize("bad", [
     pytest.param(reading(heart_rate=500), id="heart rate above 230"),

@@ -1,6 +1,6 @@
 # Decides when a patient needs a health alert.
 #
-# One bad reading is NOT an alert (it may be a glitch).
+# One bad reading isn't an alert on its own (it could just be a glitch).
 # An alert opens when a patient stays out of range for 30 seconds,
 # and closes at their next normal reading.
 #
@@ -9,7 +9,7 @@ from pulseguard import config
 
 
 def new_episode(customer_id, kind, since, limit_bpm, peak, count):
-    """A new alert "ticket"."""
+    """Create a new alert (I think of it as a ticket)."""
     return {
         "episode_id": f"{customer_id}@{since.isoformat()}",  # same patient + start time = same id
         "customer_id": customer_id,
@@ -33,8 +33,9 @@ def severity_of(kind, peak, low_limit, high_limit):
 
 
 def update_episodes(state, reading, low_limit, high_limit):
-    """The main brain: takes one heartbeat, returns events ("opened", "updated", "closed").
-    state = what we remember about each patient."""
+    """Check one reading against the 30-second rule.
+    Returns a list of events: "opened", "escalated", "updated" or "closed".
+    state holds what we know so far about each patient."""
     customer_id = reading["customer_id"]
     heart_rate = reading["heart_rate"]
     time = reading["recorded_at"]
@@ -88,7 +89,7 @@ def update_episodes(state, reading, low_limit, high_limit):
         new_severity = severity_of(kind, current["peak"], low_limit, high_limit)
         if new_severity == "critical" and episode["severity"] == "warning":
             episode["severity"] = "critical"
-            events.append(("escalated", dict(episode)))    # got worse: the doctor must know
+            events.append(("escalated", dict(episode)))    # got worse, so the doctor needs to know
         else:
             events.append(("updated", dict(episode)))
 

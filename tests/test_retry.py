@@ -1,6 +1,6 @@
-# When the database goes down WHILE PulseGuard is running, it must not stop.
+# When the database goes down while PulseGuard is running, it must not stop.
 # It keeps the batch it was holding, emails the IT team once, waits, opens a new
-# connection, saves the SAME batch, emails "back online", and carries on.
+# connection, saves the same batch, emails "back online", and carries on.
 # These tests use a real PostgreSQL test database and a real local email server.
 import psycopg2
 import pytest
@@ -58,7 +58,7 @@ def database_comes_back_after(tries, working_conn):
     return fake_reconnect, attempts
 
 
-# ---------------------------------------------------------------- good cases
+# Good cases
 
 def test_same_batch_is_saved_once_the_database_is_back(db, mail_server, monkeypatch):
     fake_reconnect, attempts = database_comes_back_after(2, KeepOpen(db))
@@ -67,7 +67,7 @@ def test_same_batch_is_saved_once_the_database_is_back(db, mail_server, monkeypa
 
     saved, conn = retry.save_until_it_works(DeadConnection(), [READING], [], [], kafka, wait_seconds=0)
 
-    assert saved == 1 and count(db, "readings") == 1   # the SAME reading was delivered
+    assert saved == 1 and count(db, "readings") == 1   # the same reading was delivered
     assert len(attempts) == 3                          # down, down, back
     assert kafka.polls_while_paused >= 3               # told Kafka "still alive" while waiting
     assert kafka.paused is False                       # and takes new messages again afterwards
@@ -129,7 +129,7 @@ def test_alert_service_keeps_running_through_a_database_outage(db, mail_server, 
     assert status["database_down"] is False
 
 
-# ---------------------------------------------------------------- error cases
+# Error cases
 
 def test_a_bug_is_not_retried(monkeypatch):
     """Only 'can't reach the database' is worth waiting for. A bug would fail forever,

@@ -4,7 +4,7 @@ from scripts.check_cases import TESTS
 from scripts.check_report import explain_results
 
 
-# ---------------------------------------------------------------- self-check explained in plain words
+# Self-check explained in plain words
 
 def results(broken=()):
     """Pretend check results: every check passes except the ones whose expected value is in broken."""

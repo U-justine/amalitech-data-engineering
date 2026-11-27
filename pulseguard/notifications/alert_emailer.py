@@ -1,5 +1,5 @@
 # Emails the health alerts that still need one (used by alert_service.py).
-#   - The database says WHAT still needs an email.
+#   - The database tells us which alerts still need an email.
 #   - After sending, the alert is marked "emailed" -> never sent twice.
 #   - Email failed? It stays unmarked and is tried again later -> never lost.
 #   - EMAIL_MIN_SEVERITY=critical (default): only CRITICAL alerts are emailed (fewer emails, less

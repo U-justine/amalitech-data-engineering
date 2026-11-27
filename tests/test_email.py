@@ -1,4 +1,4 @@
-# Proves that emails are REALLY sent, are short, and are in plain words.
+# Checks that emails really get sent, are short, and are in plain words.
 #
 # The mail_server fixture (in conftest.py) starts a real email server on this
 # computer. The code sends real emails to it over SMTP, exactly as it would to
@@ -13,7 +13,7 @@ from pulseguard.notifications.system_alerts import send_failure_email
 from pulseguard.services import consumer
 
 
-# ---------------------------------------------------------------- good cases
+# Good cases
 
 def test_email_is_really_sent(mail_server):
     assert send_failure_email("consumer", "could not connect to PostgreSQL", "full details here") is True
@@ -84,7 +84,7 @@ def test_no_email_when_turned_off(mail_server, monkeypatch):
 
 
 
-# ---------------------------------------------------------------- emails are short
+# Emails are short
 
 def test_system_problem_email_is_short(mail_server):
     """Long error details are cut to the useful end, so the email stays short."""

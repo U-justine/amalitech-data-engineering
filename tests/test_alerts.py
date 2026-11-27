@@ -8,7 +8,7 @@ from pulseguard.processing.batch import new_state
 from pulseguard.storage.alerts_db import load_open_episodes
 
 
-# ---------------------------------------------------------------- good cases
+# Good cases
 
 def test_personal_limits_decide_the_status(db):
     limits = {"PT-ATHLETE": (40, 165), "PT-SENIOR": (50, 119)}

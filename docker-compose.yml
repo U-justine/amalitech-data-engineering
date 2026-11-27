@@ -45,7 +45,7 @@ services:
       timeout: 10s
       retries: 15
 
-  # One-shot job that creates the topic, then exits.
+  # One-shot job that creates the two topics, then exits.
   kafka-init:
     image: confluentinc/cp-kafka:7.6.1
     container_name: hb-kafka-init
@@ -90,7 +90,7 @@ services:
       timeout: 5s
       retries: 20
 
-  # Test email inbox: catches every failure email. Open http://localhost:8025
+  # Test email inbox: catches every email PulseGuard sends. Open http://localhost:8025
   mailpit:
     image: axllent/mailpit:latest
     container_name: hb-mailpit
@@ -98,7 +98,7 @@ services:
       - "8025:8025"   # web page showing the inbox
       - "1025:1025"   # SMTP: where the Python scripts send emails
 
-  # ---------------- dashboard: http://localhost:3000 ----------------
+  # Grafana dashboard: http://localhost:3000
   grafana:
     image: grafana/grafana:11.1.0
     container_name: hb-grafana

@@ -18,7 +18,7 @@ def feed(state, heart_rates, patient="PT-0001", start_second=0, keep_updates=Fal
     return [(event, e) for event, e in events if keep_updates or event != "updated"]
 
 
-# ---------------------------------------------------------------- good cases
+# Good cases
 
 def test_normal_readings_never_alert():
     assert feed({}, [70] * 300) == []
@@ -78,7 +78,7 @@ def test_episode_id_is_the_same_if_readings_are_replayed():
     assert first == replay == "PT-0001@2026-01-01T12:00:00+00:00"
 
 
-# ---------------------------------------------------------------- error cases
+# Error cases
 
 def test_short_spike_is_not_an_alert():
     """A single glitch or a 20-second spike should not wake anyone up."""
@@ -104,7 +104,7 @@ def test_readings_with_gaps_still_count_by_time():
 
 
 def test_warning_that_gets_worse_is_escalated_once():
-    """135 (warning) for 31 s, then 155 (20+ above the limit): ONE "escalated" event, then only updates."""
+    """135 (warning) for 31 s, then 155 (20+ above the limit): one "escalated" event, then only updates."""
     events = feed({}, [135] * 31 + [155] * 5, keep_updates=True)
     kinds = [event for event, _ in events]
     assert kinds.count("escalated") == 1

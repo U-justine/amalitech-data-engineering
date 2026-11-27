@@ -17,7 +17,7 @@ def message(**changes):
     return json.dumps(data).encode()
 
 
-# ---------------------------------------------------------------- good cases
+# Good cases
 
 @pytest.mark.parametrize("heart_rate, status", [
     pytest.param(72, "normal", id="resting"),
@@ -57,7 +57,7 @@ def test_timestamp_without_time_zone_is_treated_as_utc():
     assert reading["recorded_at"].tzinfo == timezone.utc
 
 
-# ---------------------------------------------------------------- error cases
+# Error cases
 
 @pytest.mark.parametrize("raw, problem", [
     # Broken or empty messages

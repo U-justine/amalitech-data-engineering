@@ -1,4 +1,4 @@
-# When a part of PulseGuard fails, the IT team REALLY gets an email (real local email server).
+# When a part of PulseGuard fails, the IT team actually gets an email (real local email server).
 
 from kafka.errors import NoBrokersAvailable
 import psycopg2
@@ -10,7 +10,7 @@ from pulseguard.storage import database
 from scripts import check_pipeline
 
 
-# ---------------------------------------------------------------- error cases
+# Error cases
 
 def test_email_when_consumer_cannot_reach_the_database(mail_server, monkeypatch):
     def database_down(**settings):

@@ -1,7 +1,7 @@
 # Emails health alerts.     python -m pulseguard.services.alert_service
 #
 # Reads the "heartbeat-alerts" topic as its own group ("alert-emailers").
-#   - Kafka says WHEN to look; the database says WHAT still needs an email.
+#   - Kafka tells it when to look; the database tells it which alerts still need an email.
 #   - After sending, the alert is marked "emailed" -> never sent twice.
 #   - Email failed? It stays unmarked and is retried every 15 s -> never lost.
 #   - Database down? Don't stop: email the IT team, wait, reconnect, carry on.

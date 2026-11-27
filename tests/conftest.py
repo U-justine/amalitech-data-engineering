@@ -70,7 +70,7 @@ def db():
 
 @pytest.fixture
 def mail_server(monkeypatch):
-    """Start a REAL email (SMTP) server on this computer for the test.
+    """Start a real email (SMTP) server on this computer for the test.
 
     Every email it receives is added to the returned list, so a test can
     check that an email was actually delivered, and read its subject and text.

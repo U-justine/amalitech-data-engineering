@@ -13,8 +13,8 @@ CONNECTION_PROBLEMS = (psycopg2.OperationalError, psycopg2.InterfaceError)
 
 
 def reconnect(old_conn):
-    """Throw away the old (dead) connection and try once to open a new one.
-    Like a key that no longer fits: after a restart, the old one never works again.
+    """Close the old (dead) connection and try once to open a new one.
+    After a database restart the old connection never works again.
     Returns the new connection, or None if the database is still down."""
     if old_conn is not None:
         try:

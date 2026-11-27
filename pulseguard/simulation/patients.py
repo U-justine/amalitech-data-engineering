@@ -1,4 +1,4 @@
-# The clinic's patients, each with their OWN heart rate limits.
+# The clinic's patients, each with their own heart rate limits.
 #
 # 45 bpm is normal for an athlete but low for most people.
 # 130 bpm is fine at 25 but high at 80.
