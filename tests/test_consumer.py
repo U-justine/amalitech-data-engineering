@@ -34,8 +34,8 @@ def count_rows(db, table):
         return cur.fetchone()[0]
 
 
+# Pretends the database has gone down.
 class BrokenDatabase:
-    """Pretends the database has gone down."""
     def cursor(self):
         raise RuntimeError("database is down")
 
@@ -82,8 +82,8 @@ def test_full_flow_into_database(db):
         assert fastest_kafka >= 0.04 and slowest_total < 5   # fake messages were sent 50 ms earlier
 
 
+# The consumer measures producer -> consumer delay and saving time.
 def test_timing_is_measured(db):
-    """The consumer measures producer -> consumer delay and saving time."""
     timing = new_timing()
     process_one_batch(FakeKafkaConsumer([msg("CUST-A", 0, 70), msg("CUST-A", 1, 71)]), db,
                       new_totals(), quiet=True, timings=[timing])
@@ -99,15 +99,15 @@ def test_timing_text_with_no_messages():
 
 # Error cases
 
+# No new messages: nothing is saved and nothing is committed.
 def test_empty_poll_does_nothing():
-    """No new messages: nothing is saved and nothing is committed."""
     kafka = FakeKafkaConsumer([])
     assert process_one_batch(kafka, BrokenDatabase(), new_totals(), quiet=True) == 0
     assert kafka.commits == 0
 
 
+# Every message is bad: nothing goes into readings, all go to rejected_readings.
 def test_batch_of_only_bad_messages(db):
-    """Every message is bad: nothing goes into readings, all go to rejected_readings."""
     kafka = FakeKafkaConsumer([b"", b"not json", msg("CUST-A", 0, 0), msg("CUST-A", 1, 999)])
     totals = run_until_empty(kafka, db)
     assert totals["saved"] == 0 and totals["rejected"] == 4
@@ -116,8 +116,8 @@ def test_batch_of_only_bad_messages(db):
     assert kafka.commits == 1   # bad messages are still "done", so they are not read again
 
 
+# Like a crash before commit: Kafka sends the same messages again.
 def test_reading_the_same_messages_twice_saves_them_once(db):
-    """Like a crash before commit: Kafka sends the same messages again."""
     messages = [msg(f"CUST-{c}", s, 70) for c in range(5) for s in range(3)]
     first = run_until_empty(FakeKafkaConsumer(messages), db)
     second = run_until_empty(FakeKafkaConsumer(messages), db)
@@ -133,9 +133,9 @@ def test_nothing_is_committed_if_the_database_fails():
     assert kafka.commits == 0
 
 
+# The database is down for the first try. Because nothing was committed,
+# Kafka sends the same messages again, and this time they are saved.
 def test_database_fails_then_recovers(db):
-    """The database is down for the first try. Because nothing was committed,
-    Kafka sends the same messages again, and this time they are saved."""
     messages = [msg("CUST-A", 0, 70), msg("CUST-A", 1, 140)]
 
     first_try = FakeKafkaConsumer(messages)

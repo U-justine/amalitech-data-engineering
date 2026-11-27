@@ -61,8 +61,8 @@ def test_short_spike_creates_no_alert_and_no_email(db, mail_server):
     assert alert_emailer.send_pending_emails(db) == 0 and mail_server == []
 
 
+# Kafka may deliver the same alert message twice (at-least-once). Only one email goes out.
 def test_replayed_kafka_messages_do_not_send_a_second_email(db, mail_server):
-    """Kafka may deliver the same alert message twice (at-least-once). Only one email goes out."""
     episode = new_episode("PT-0007", "high", START, 130, 150, 31)
     save_batch(db, [], [], [("opened", episode)])
     message = SimpleNamespace(value=json.dumps({"event": "opened", **episode}, default=str).encode())
@@ -72,7 +72,6 @@ def test_replayed_kafka_messages_do_not_send_a_second_email(db, mail_server):
     alert_emailer.process_alert_messages(kafka, db)
     alert_emailer.process_alert_messages(kafka, db)          # the same message again
     assert len(mail_server) == 1
-
 
 
 def test_email_server_down_then_back_alert_is_not_lost(db, mail_server, monkeypatch):
@@ -104,8 +103,8 @@ def test_alert_service_failure_sends_failure_email(mail_server, monkeypatch):
 
 # Self-check test patients
 
+# Self-check patients (TEST-...) aren't real, so no CRITICAL email goes to doctors.
 def test_test_patient_alert_goes_to_it_team_not_doctors(mail_server):
-    """Self-check patients (TEST-...) aren't real, so no CRITICAL email goes to doctors."""
     from pulseguard.notifications.health_alerts import send_health_alert
     episode = new_episode("TEST-ABC123-9", "high", START, 120, 150, 31)
     send_health_alert("opened", episode)
@@ -130,8 +129,8 @@ def test_self_check_removes_its_test_patients(db):
 
 # Warning that gets worse, and what the email shows
 
+# The doctor was told WARNING; when it gets worse they must be told again, once.
 def test_warning_that_becomes_critical_sends_one_more_email(db, mail_server):
-    """The doctor was told WARNING; when it gets worse they must be told again, once."""
     save_batch(db, [], [], [("opened", new_episode("PT-0007", "high", START, 130, 140, 31))])
     assert alert_emailer.send_pending_emails(db) == 1                      # WARNING email
     worse = new_episode("PT-0007", "high", START, 130, 155, 40)
@@ -194,12 +193,11 @@ def test_warning_that_becomes_critical_is_emailed_as_critical(db, mail_server, m
     assert mail_server[0]["subject"].startswith("[PulseGuard] CRITICAL: PT-0007")
 
 
+# No alert email -> no RESOLVED email either (the doctor never heard about it).
 def test_warning_that_ends_sends_no_email_at_all(db, mail_server, monkeypatch):
-    """No alert email -> no RESOLVED email either (the doctor never heard about it)."""
     monkeypatch.setattr(config, "EMAIL_MIN_SEVERITY", "critical")
     over = new_episode("PT-0007", "high", START, 130, 140, 40)
     over["ended_at"] = START + timedelta(seconds=40)
     save_batch(db, [], [], [("closed", over)])
     assert alert_emailer.send_pending_emails(db) == 0 and mail_server == []
     assert rows(db, "SELECT count(*) FROM alert_episodes") == [(1,)]       # still saved for Grafana
-

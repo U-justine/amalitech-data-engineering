@@ -11,8 +11,8 @@ AREAS = [
 ]
 
 
+# Check results -> plain words: (summary, likely cause, data lost?).
 def explain_results(results):
-    """Check results -> plain words: (summary, likely cause, data lost?)."""
     summary, broken = [], set()
     for area, belongs in AREAS:
         in_area = [r for r in results if belongs(r[1])]
@@ -39,9 +39,9 @@ def explain_results(results):
     return "\n".join(summary), cause, data_lost
 
 
+# Delete this run's test patients (TEST-<run id>-...) from the database.
+# First wait (up to 15 s) for the test alert's RESOLVED email, so the whole email path is used.
 def remove_test_data(conn, run_id, wait_for_resolved=True):
-    """Delete this run's test patients (TEST-<run id>-...) from the database.
-    First wait (up to 15 s) for the test alert's RESOLVED email, so the whole email path is used."""
     patients = f"TEST-{run_id}-%"
     with conn.cursor() as cur:
         for _ in range(15 if wait_for_resolved else 0):

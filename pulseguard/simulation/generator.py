@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 from pulseguard.simulation.patients import make_patient
 
 
+# Add the fields the simulation needs.
 def start_watching(patient):
-    """Add the fields the simulation needs."""
     patient["current"] = patient["resting_bpm"]   # heart rate now
     patient["exercise_left"] = 0                   # seconds of exercise left
     patient["exercise_target"] = patient["resting_bpm"]
@@ -22,9 +22,9 @@ def start_watching(patient):
     return patient
 
 
+# Send the heart rate out of range and keep it there.
+# serious=True: far enough out to be critical (used by --emergency, so the demo always emails).
 def start_medical_event(patient, kind="high", seconds=60, serious=False):
-    """Send the heart rate out of range and keep it there.
-    serious=True: far enough out to be CRITICAL (used by --emergency, so the demo always emails)."""
     patient["event_left"] = seconds
     if kind == "high":
         extra = random.randint(22, 32) if serious else random.randint(12, 30)
@@ -34,8 +34,20 @@ def start_medical_event(patient, kind="high", seconds=60, serious=False):
         patient["event_target"] = max(30, patient["low_limit"] - below)
 
 
+# --emergency PT-0007: make these patients' heart rate go high (or low) for 75 seconds.
+def start_emergencies(patients, patient_ids, kind):
+    for patient_id in patient_ids:
+        patient = next((p for p in patients if p["customer_id"] == patient_id), None)
+        if patient is None:
+            raise SystemExit(f"--emergency: no patient called {patient_id}")
+        start_medical_event(patient, kind, seconds=75, serious=True)
+        print(f"EMERGENCY: {patient_id} ({patient['profile']}, age {patient['age']}, "
+              f"limits {patient['low_limit']}-{patient['high_limit']} bpm) heart rate will go "
+              f"{kind} for 75 seconds")
+
+
+# The next heart rate (one per second).
 def next_heart_rate(patient, event_chance=0.0):
-    """The next heart rate (one per second)."""
     # 1. Maybe start a (rare) medical event
     if patient["event_left"] == 0 and random.random() < event_chance:
         start_medical_event(patient, random.choice(["high", "low"]), random.randint(45, 90))
@@ -60,8 +72,8 @@ def next_heart_rate(patient, event_chance=0.0):
     return round(patient["current"])
 
 
+# One bad value from the sensor.
 def glitch(patient):
-    """One bad value from the sensor."""
     return random.choice([
         0,                                                      # impossible -> rejected
         random.randint(260, 320),                               # impossible -> rejected
@@ -70,8 +82,8 @@ def glitch(patient):
     ])
 
 
+# One reading. bad_chance = how often a glitch happens (0.02 = 2%).
 def make_reading(patient, bad_chance=0.02, event_chance=0.0):
-    """One reading. bad_chance = how often a glitch happens (0.02 = 2%)."""
     heart_rate = next_heart_rate(patient, event_chance)
     if random.random() < bad_chance:
         heart_rate = glitch(patient)
@@ -88,15 +100,3 @@ if __name__ == "__main__":
         patient = start_watching(make_patient(number))
         print(patient["profile"], patient["age"], "limits", patient["low_limit"], "-", patient["high_limit"],
               make_reading(patient))
-
-
-def start_emergencies(patients, patient_ids, kind):
-    """--emergency PT-0007: make these patients' heart rate go high (or low) for 75 seconds."""
-    for patient_id in patient_ids:
-        patient = next((p for p in patients if p["customer_id"] == patient_id), None)
-        if patient is None:
-            raise SystemExit(f"--emergency: no patient called {patient_id}")
-        start_medical_event(patient, kind, seconds=75, serious=True)
-        print(f"EMERGENCY: {patient_id} ({patient['profile']}, age {patient['age']}, "
-              f"limits {patient['low_limit']}-{patient['high_limit']} bpm) heart rate will go "
-              f"{kind} for 75 seconds")

@@ -21,8 +21,8 @@ from pulseguard.notifications.system_alerts import send_failure_email
 from pulseguard.simulation.patients import load_or_create_patients
 
 
+# Connect to Kafka (keeps trying for a minute while it starts).
 def connect_to_kafka():
-    """Connect to Kafka (keeps trying for a minute while it starts)."""
     for attempt in range(20):
         try:
             return KafkaProducer(
@@ -37,6 +37,7 @@ def connect_to_kafka():
     raise SystemExit(f"Could not connect to Kafka at {KAFKA_SERVER}. Is 'docker compose up -d' running?")
 
 
+# Start here: read the options, run the producer, and email the IT team if it crashes.
 def main():
     parser = argparse.ArgumentParser(description="Send fake heart rate readings to Kafka")
     parser.add_argument("--patients", "--customers", type=int, default=100, help="how many patients to simulate")
@@ -57,6 +58,8 @@ def main():
         raise
 
 
+# Load the patients, then send one reading each every second until Ctrl+C
+# (or until --seconds is up). Prints progress every 5 seconds.
 def run_producer(args):
     conn = connect()
     patients = [start_watching(p) for p in load_or_create_patients(conn, args.patients)]

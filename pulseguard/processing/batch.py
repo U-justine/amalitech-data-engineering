@@ -14,8 +14,8 @@ from pulseguard.storage.database import save_batch
 from pulseguard.storage.retry import save_until_it_works
 
 
+# What the consumer remembers between batches.
 def new_state(limits=None, open_episodes=None):
-    """What the consumer remembers between batches."""
     return {
         "limits": limits or {},              # {patient id: (low, high)}
         "limits_loaded_at": time.time(),
@@ -23,11 +23,12 @@ def new_state(limits=None, open_episodes=None):
     }
 
 
+# One batch: take -> check -> find alerts -> save -> send alerts -> commit.
+# retry=True: if the database is down, wait and try the same batch again
+# (the new working connection ends up in state["conn"]).
+# Returns how many messages were in the batch (0 if none).
 def process_one_batch(consumer, conn, totals, quiet=False, timings=(), state=None, alert_publisher=None,
                       retry=False):
-    """One batch: take -> check -> find alerts -> save -> send alerts -> commit.
-    retry=True: wait and retry if the database is down (the working connection goes in state["conn"]).
-    Returns the number of messages in the batch (0 if there were none)."""
     state = state if state is not None else new_state()
 
     # 1. take a batch from Kafka

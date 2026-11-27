@@ -10,8 +10,8 @@ from pulseguard.processing.episodes import update_episodes
 from pulseguard.simulation.patients import limits_for
 
 
+# Creates a Kafka producer for the alerts topic, waiting for Kafka to confirm storage.
 def connect_alert_publisher():
-    """A Kafka producer for the alerts topic."""
     return KafkaProducer(
         bootstrap_servers=KAFKA_SERVER,
         key_serializer=lambda key: key.encode("utf-8"),
@@ -20,9 +20,9 @@ def connect_alert_publisher():
     )
 
 
+# Checks every reading against the 30-second rule, in time order.
+# Returns opened/escalated/closed events, plus the latest "updated" one per open alert.
 def find_alerts(state, good):
-    """Check every reading against the 30-second rule, in time order.
-    Returns opened/closed events, plus the latest "updated" one per open alert."""
     events, latest_update = [], {}
     for reading in sorted(good, key=lambda r: (r["customer_id"], r["recorded_at"])):
         low, high = limits_for(state["limits"], reading["customer_id"])
@@ -35,8 +35,8 @@ def find_alerts(state, good):
     return events + [("updated", episode) for episode in latest_update.values()]
 
 
+# Sends opened/escalated/closed alerts to the Kafka alerts topic, using the patient ID as the key.
 def publish_alerts(alert_publisher, events):
-    """Send alerts to the alerts topic (key = patient)."""
     if alert_publisher is None or not events:
         return
     for event, episode in events:
@@ -45,6 +45,7 @@ def publish_alerts(alert_publisher, events):
     alert_publisher.flush()   # make sure Kafka has them before we say "done"
 
 
+# Prints a readable summary of each alert event to the terminal.
 def print_alerts(events):
     for event, e in events:
         if event == "opened":

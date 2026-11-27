@@ -18,8 +18,8 @@ READING = {"customer_id": "PT-0001", "recorded_at": datetime(2026, 1, 1, 12, tzi
            "heart_rate": 70, "status": "normal"}
 
 
+# A connection to a database that has stopped (what psycopg2 gives you after a restart).
 class DeadConnection:
-    """A connection to a database that has stopped (what psycopg2 gives you after a restart)."""
     def cursor(self):
         raise psycopg2.OperationalError("server closed the connection unexpectedly")
 
@@ -30,8 +30,8 @@ class DeadConnection:
         pass
 
 
+# Wraps the test database so the code under test can't close it.
 class KeepOpen:
-    """Wraps the test database so the code under test can't close it."""
     def __init__(self, conn):
         self.conn = conn
 
@@ -48,8 +48,8 @@ def count(db, table):
         return cur.fetchone()[0]
 
 
+# A fake reconnect(): the database is still down for `tries` attempts, then it is back.
 def database_comes_back_after(tries, working_conn):
-    """A fake reconnect(): the database is still down for `tries` attempts, then it is back."""
     attempts = []
 
     def fake_reconnect(old_conn):
@@ -78,9 +78,9 @@ def test_same_batch_is_saved_once_the_database_is_back(db, mail_server, monkeypa
     assert "retries every 0 s" in mail_server[0]["body"]
 
 
+# The real consumer.main(): the database dies, comes back, and the batch is
+# saved and only then committed to Kafka. No restart needed.
 def test_consumer_keeps_running_through_a_database_outage(db, mail_server, monkeypatch):
-    """The real consumer.main(): the database dies, comes back, and the batch is
-    saved and only then committed to Kafka. No restart needed."""
     class StopAfterFirstCommit(FakeKafkaConsumer):
         def poll(self, timeout_ms=0):
             if self.commits:
@@ -131,9 +131,9 @@ def test_alert_service_keeps_running_through_a_database_outage(db, mail_server, 
 
 # Error cases
 
+# Only 'can't reach the database' is worth waiting for. A bug would fail forever,
+# so it stops straight away (and the failure email is sent by main()).
 def test_a_bug_is_not_retried(monkeypatch):
-    """Only 'can't reach the database' is worth waiting for. A bug would fail forever,
-    so it stops straight away (and the failure email is sent by main())."""
     class BuggyConnection:
         def cursor(self):
             raise ValueError("a bug")
@@ -153,9 +153,9 @@ def test_a_row_the_database_refuses_is_not_retried(db, monkeypatch):
         retry.save_until_it_works(db, [bad], [], [], FakeKafkaConsumer([]), wait_seconds=0)
 
 
+# Safety net: if Kafka still gives us messages while we wait, we go back to the
+# first one, so they are read again later instead of being skipped.
 def test_messages_handed_out_while_paused_are_put_back():
-    """Safety net: if Kafka still gives us messages while we wait, we go back to the
-    first one, so they are read again later instead of being skipped."""
     from types import SimpleNamespace
 
     class LeakyKafka(FakeKafkaConsumer):

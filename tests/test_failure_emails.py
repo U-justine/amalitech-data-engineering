@@ -68,9 +68,9 @@ def test_email_when_producer_cannot_reach_kafka(mail_server, monkeypatch):
     assert mail_server[0]["subject"] == "[PulseGuard] SYSTEM PROBLEM: no new heart rates are arriving (Kafka not reachable)"
 
 
+# Nothing reaches the database (e.g. the consumer is stopped): every check
+# fails, and the email lists which checks failed.
 def test_email_when_pipeline_check_fails(mail_server, monkeypatch):
-    """Nothing reaches the database (e.g. the consumer is stopped): every check
-    fails, and the email lists which checks failed."""
     class FakeProducer:
         def __init__(self, **settings): pass
         def send(self, topic, value, key=None): pass

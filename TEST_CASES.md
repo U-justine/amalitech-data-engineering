@@ -11,7 +11,7 @@ Each test is a **Good** case (valid input: it should work) or an **Error** case 
 
 | | Good | Error | Total | Passed |
 |---|---|---|---|---|
-| Automated tests (pytest) | 70 | 69 | 139 | 139 |
+| Automated tests (pytest) | 81 | 71 | 152 | 152 |
 | End-to-end check | 7 | 12 | 19 | 19 |
 
 ## What the error cases prove
@@ -204,6 +204,8 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T145 | Only critical alerts are emailed by default | Good | PASS |
 | T146 | Warning that becomes critical is emailed as critical | Good | PASS |
 | T147 | Warning that ends sends no email at all (but is still saved) | Error | PASS |
+| T149 | Self-check (TEST-) patient's alert goes to the IT team, not doctors | Good | PASS |
+| T150 | Self-check removes its test patients afterwards | Good | PASS |
 
 ### System problem and back-online emails ([system_alerts.py](pulseguard/notifications/system_alerts.py), [back_online.py](pulseguard/notifications/back_online.py)), sent to a real local email server  ([`tests/test_email.py`](tests/test_email.py), [`tests/test_failure_emails.py`](tests/test_failure_emails.py), [`tests/test_back_online.py`](tests/test_back_online.py), [`tests/test_self_check_report.py`](tests/test_self_check_report.py))
 
@@ -221,6 +223,8 @@ Run with `pytest -v`. To include the database tests, set `TEST_DB` first (see th
 | T124 | Email when pipeline check fails | Error | PASS |
 | T125 | Email server down does not crash | Error | PASS |
 | T126 | No email when turned off | Error | PASS |
+| T151 | System problem email is short (long error cut to the useful end) | Good | PASS |
+| T152 | Health alert email is short | Good | PASS |
 | T127 | Back online email after a failure | Good | PASS |
 | T128 | Back online is sent only once | Good | PASS |
 | T129 | Normal start sends no back online email | Good | PASS |

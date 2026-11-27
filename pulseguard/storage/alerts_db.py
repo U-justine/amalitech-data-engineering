@@ -1,8 +1,8 @@
 # Reads and updates health alerts (alert_episodes) in PostgreSQL.
 
 
+# Alerts still open from last time, so they can close properly after a restart.
 def load_open_episodes(conn):
-    """Alerts still open from last time, so they can close properly after a restart."""
     with conn.cursor() as cur:
         cur.execute("""SELECT episode_id, customer_id, kind, severity, limit_bpm, peak_bpm,
                               reading_count, started_at
@@ -20,10 +20,11 @@ def load_open_episodes(conn):
     return state
 
 
+# Alerts that still need an email: new, got worse (warning -> critical), or ended.
+# With min_severity="critical", warnings aren't emailed (you only see them in Grafana).
+# If a warning later becomes critical, it gets emailed then.
+# RESOLVED is only sent if the alert was emailed in the first place.
 def episodes_needing_email(conn, min_severity="warning"):
-    """Alerts that still need an email: new, got worse (warning -> critical), or ended.
-    min_severity="critical": warnings are not emailed (only shown in Grafana); a warning that
-    becomes critical is emailed then, and RESOLVED is only sent if the alert was emailed."""
     levels = ("critical",) if min_severity == "critical" else ("warning", "critical")
     with conn.cursor() as cur:
         cur.execute("""SELECT e.*, p.profile, p.age, p.low_limit, p.high_limit
@@ -38,9 +39,9 @@ def episodes_needing_email(conn, min_severity="warning"):
     return rows
 
 
+# Write down that an email was sent. which = "opened", "escalated" or "closed".
+# severity = what that email told the doctor, so I can notice if a warning becomes critical later.
 def mark_emailed(conn, episode_id, which, severity=None):
-    """Note that an email was sent. which = "opened", "escalated" or "closed".
-    severity = the severity that email told the doctor (so a later warning -> critical is noticed)."""
     sql = {
         "opened": "UPDATE alert_episodes SET opened_email_at = now(), emailed_severity = %s WHERE episode_id = %s",
         "escalated": "UPDATE alert_episodes SET emailed_severity = %s WHERE episode_id = %s",
@@ -52,8 +53,8 @@ def mark_emailed(conn, episode_id, which, severity=None):
     conn.commit()
 
 
+# The patient's last few readings since the alert started: [(time, bpm), ...], oldest first.
 def recent_readings(conn, customer_id, since, count=5):
-    """The patient's last few readings since the alert started: [(time, bpm), ...], oldest first."""
     with conn.cursor() as cur:
         cur.execute("""SELECT recorded_at, heart_rate FROM readings
                        WHERE customer_id = %s AND recorded_at >= %s

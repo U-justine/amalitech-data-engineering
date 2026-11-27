@@ -9,8 +9,8 @@ from pulseguard.simulation.generator import make_reading, start_watching
 from pulseguard.simulation.patients import make_patient
 
 
+# Pretends to be Kafka and remembers what was sent.
 class FakeKafkaProducer:
-    """Pretends to be Kafka and remembers what was sent."""
     last = None   # the most recently created fake producer
 
     def __init__(self, **settings):

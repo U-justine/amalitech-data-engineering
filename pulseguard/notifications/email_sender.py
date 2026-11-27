@@ -9,9 +9,8 @@ from email.message import EmailMessage
 from pulseguard import config
 
 
+# Connects to the mail server and sends one email. Returns True if successful.
 def send_email(subject, body, to=None):
-    """Send one email. Returns True if sent.
-    If it fails, print a warning (don't crash)."""
     if not config.EMAIL_ENABLED:
         return False
 
@@ -35,15 +34,15 @@ def send_email(subject, body, to=None):
         return False
 
 
+# Formats a date and time into a short, readable string with the time zone.
 def when(moment=None):
-    """A short, readable local time with its time zone: 25 Nov 2026, 17:08 (UTC+02:00)."""
     local = moment.astimezone() if moment else datetime.now().astimezone()
     offset = local.strftime("%z")                     # e.g. +0200
     return f"{local:%d %b %Y, %H:%M} (UTC{offset[:3]}:{offset[3:]})"
 
 
+# Turns a number of seconds into a readable string (like "1 min 15 s").
 def how_long(seconds):
-    """e.g. 75 -> '1 min 15 s', 4000 -> '1 h 6 min'."""
     seconds = int(seconds)
     if seconds < 60:
         return f"{seconds} s"
@@ -52,6 +51,8 @@ def how_long(seconds):
     return f"{seconds // 3600} h {seconds % 3600 // 60} min"
 
 
+# Connects to the mail server and sends one email. Returns True if successful.
+# If it fails I only print a warning, so an email problem never stops the pipeline.
 if __name__ == "__main__":
     sent = send_email("[PulseGuard] Test email", "This is a test email from PulseGuard. Everything is fine.")
     print("Open http://localhost:8025 to see it." if sent else "Email was NOT sent - is Mailpit running?")

@@ -34,8 +34,8 @@ CAUSES = [
 ]
 
 
+# Reads the error message and returns a short cause, a plain-English cause, and a runbook section.
 def explain_error(error):
-    """Error -> (short cause, plain cause, runbook section)."""
     text = f"{type(error).__name__} {error}".lower()
     for words, short, plain, section in CAUSES:
         if any(word in text for word in words):
@@ -43,19 +43,19 @@ def explain_error(error):
     return "unexpected error", "An unexpected error happened inside PulseGuard.", "4.3"
 
 
+# Shortens long error tracebacks by keeping only the beginning and the most useful last few lines.
 def short_details(details, keep=6):
-    """Keep only the end of a long error traceback (the useful part)."""
     lines = details.strip().splitlines()
     if lines and lines[0].startswith("Traceback") and len(lines) > keep + 1:
         return "\n".join([lines[0], "  ..."] + lines[-keep:])
     return "\n".join(lines)
 
 
+# Builds and sends a "SYSTEM PROBLEM" email to the IT team, and marks the part as down.
+# retrying_every: set it when the part keeps trying by itself (e.g. every 10 s),
+# so the email says to wait for BACK ONLINE instead of asking IT to fix it now.
 def send_failure_email(what_failed, error, details="", plain_cause=None, plain_summary=None, data_lost=None,
                        retrying_every=None):
-    """Email the IT team that part of PulseGuard has a problem.
-    Top: what, why, data lost?, what next. Bottom: a short technical error.
-    retrying_every: set if the part is retrying by itself."""
     short_effect, effect, standard_data_lost = WHAT_STOPPED.get(
         what_failed, (f"{what_failed} stopped", f"The {what_failed} has stopped.", "Unknown."))
     short_cause, cause, section = explain_error(error)

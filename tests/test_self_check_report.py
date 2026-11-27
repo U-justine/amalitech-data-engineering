@@ -6,8 +6,8 @@ from scripts.check_report import explain_results
 
 # Self-check explained in plain words
 
+# Pretend check results: every check passes except the ones whose expected value is in broken.
 def results(broken=()):
-    """Pretend check results: every check passes except the ones whose expected value is in broken."""
     return [(d, e, "wrong" if e in broken else e, e not in broken) for d, _, e in TESTS]
 
 

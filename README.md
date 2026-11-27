@@ -238,9 +238,9 @@ Taken from a real run on Windows with Docker. All images are in [`screenshots/`]
 
 ### 4. Tests
 
-**`pytest`: 143 tests passed** ([`08_pytest.png`](screenshots/08_pytest.png))
+**`pytest`: 152 tests passed** ([`08_pytest.png`](screenshots/08_pytest.png))
 
-![pytest: 143 tests passed](screenshots/08_pytest.png)
+![pytest: 152 tests passed](screenshots/08_pytest.png)
 
 **End-to-end self-check through real Kafka and PostgreSQL: 19/19 passed** ([`09_self_check.png`](screenshots/09_self_check.png))
 

@@ -9,8 +9,8 @@ from datetime import datetime, timedelta, timezone
 from pulseguard.config import NORMAL_MAX, NORMAL_MIN, POSSIBLE_MAX, POSSIBLE_MIN
 
 
+# normal, low or high (using the patient's own limits).
 def get_status(heart_rate, low_limit=NORMAL_MIN, high_limit=NORMAL_MAX):
-    """normal, low or high (using the patient's own limits)."""
     if heart_rate < low_limit:
         return "low"
     if heart_rate > high_limit:
@@ -18,6 +18,7 @@ def get_status(heart_rate, low_limit=NORMAL_MIN, high_limit=NORMAL_MAX):
     return "normal"
 
 
+# Runs the 5 checks below in order and stops at the first problem.
 def check_reading(message):
     # 1. Is it valid JSON, like {"key": value}?
     try:

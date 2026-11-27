@@ -8,8 +8,8 @@
 from pulseguard import config
 
 
+# Create a new alert (I think of it as a ticket).
 def new_episode(customer_id, kind, since, limit_bpm, peak, count):
-    """Create a new alert (I think of it as a ticket)."""
     return {
         "episode_id": f"{customer_id}@{since.isoformat()}",  # same patient + start time = same id
         "customer_id": customer_id,
@@ -23,8 +23,8 @@ def new_episode(customer_id, kind, since, limit_bpm, peak, count):
     }
 
 
+# Critical if far outside the limit, otherwise warning.
 def severity_of(kind, peak, low_limit, high_limit):
-    """Critical if far outside the limit, otherwise warning."""
     if kind == "high" and peak >= high_limit + config.CRITICAL_ABOVE:
         return "critical"
     if kind == "low" and peak <= low_limit - config.CRITICAL_BELOW:
@@ -32,10 +32,10 @@ def severity_of(kind, peak, low_limit, high_limit):
     return "warning"
 
 
+# Check one reading against the 30-second rule.
+# Returns a list of events: "opened", "escalated", "updated" or "closed".
+# state holds what we know so far about each patient.
 def update_episodes(state, reading, low_limit, high_limit):
-    """Check one reading against the 30-second rule.
-    Returns a list of events: "opened", "escalated", "updated" or "closed".
-    state holds what we know so far about each patient."""
     customer_id = reading["customer_id"]
     heart_rate = reading["heart_rate"]
     time = reading["recorded_at"]

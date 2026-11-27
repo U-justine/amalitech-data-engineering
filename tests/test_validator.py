@@ -9,8 +9,8 @@ from pulseguard.processing.validator import check_reading
 NOW = datetime.now(timezone.utc).isoformat()
 
 
+# A good message, with some fields changed or removed (use None to remove).
 def message(**changes):
-    """A good message, with some fields changed or removed (use None to remove)."""
     data = {"customer_id": "CUST-001", "timestamp": NOW, "heart_rate": 72}
     data.update(changes)
     data = {key: value for key, value in data.items() if value is not None}

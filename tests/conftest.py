@@ -11,8 +11,8 @@ PROJECT_FOLDER = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_FOLDER)
 
 
+# Pretends to be a Kafka consumer, so the consumer code can be tested without Kafka.
 class FakeKafkaConsumer:
-    """Pretends to be a Kafka consumer, so the consumer code can be tested without Kafka."""
 
     def __init__(self, messages, batch_size=50):
         self.messages = messages
@@ -52,9 +52,9 @@ class FakeKafkaConsumer:
         self.paused = False
 
 
+# A clean test database. Tests using it are skipped if TEST_DB is not set.
 @pytest.fixture
 def db():
-    """A clean test database. Tests using it are skipped if TEST_DB is not set."""
     dsn = os.getenv("TEST_DB")
     if not dsn:
         pytest.skip("set TEST_DB to run the database tests")
@@ -68,13 +68,12 @@ def db():
     conn.close()
 
 
+# Start a real email (SMTP) server on this computer for the test.
+#
+# Every email it receives is added to the returned list, so a test can
+# check that an email was actually delivered, and read its subject and text.
 @pytest.fixture
 def mail_server(monkeypatch):
-    """Start a real email (SMTP) server on this computer for the test.
-
-    Every email it receives is added to the returned list, so a test can
-    check that an email was actually delivered, and read its subject and text.
-    """
     import email
     import email.policy
     import socket
@@ -109,10 +108,10 @@ def mail_server(monkeypatch):
     server.stop()
 
 
+# Each test gets its own empty folder for the "is it down?" files,
+# so tests never touch the real .pulseguard_state folder.
 @pytest.fixture(autouse=True)
 def separate_state_folder(tmp_path, monkeypatch):
-    """Each test gets its own empty folder for the "is it down?" files,
-    so tests never touch the real .pulseguard_state folder."""
     from pulseguard import config
     monkeypatch.setattr(config, "STATE_DIR", str(tmp_path / "state"))
     # Email warnings too, so the email tests cover every kind of alert email.

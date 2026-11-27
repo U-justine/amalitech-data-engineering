@@ -36,8 +36,8 @@ def test_duplicate_is_skipped_not_an_error(db):
     assert count_rows(db, "readings") == 1
 
 
+# Given sent and received times, PostgreSQL fills in the seconds for each step.
 def test_database_works_out_seconds_per_step(db):
-    """Given sent and received times, PostgreSQL fills in the seconds for each step."""
     now = datetime.now(timezone.utc)
     save_batch(db, [reading(sent_at=now - timedelta(seconds=0.25), received_at=now - timedelta(seconds=0.05))], [])
     with db.cursor() as cur:
@@ -48,8 +48,8 @@ def test_database_works_out_seconds_per_step(db):
     assert total_seconds == kafka_seconds + save_seconds
 
 
+# Old or test messages may have no sent time: the row is saved, the seconds are just empty.
 def test_reading_without_timing_still_saves(db):
-    """Old or test messages may have no sent time: the row is saved, the seconds are just empty."""
     save_batch(db, [reading()], [])
     with db.cursor() as cur:
         cur.execute("SELECT kafka_seconds, total_seconds FROM readings")
@@ -68,6 +68,7 @@ def test_timing_per_minute_view(db):
 
 # Error cases
 
+# Even if a bad reading got past the validator, the database rules stop it.
 @pytest.mark.parametrize("bad", [
     pytest.param(reading(heart_rate=500), id="heart rate above 230"),
     pytest.param(reading(heart_rate=0), id="heart rate 0"),
@@ -77,14 +78,13 @@ def test_timing_per_minute_view(db):
     pytest.param(reading(customer_id="X" * 40), id="customer id too long"),
 ])
 def test_database_refuses_bad_rows(db, bad):
-    """Even if a bad reading got past the validator, the database rules stop it."""
     with pytest.raises(psycopg2.Error):
         save_batch(db, [bad], [])
     assert count_rows(db, "readings") == 0
 
 
+# A batch is saved all together or not at all, so Kafka can safely resend it.
 def test_one_bad_row_cancels_the_whole_batch(db):
-    """A batch is saved all together or not at all, so Kafka can safely resend it."""
     with pytest.raises(psycopg2.Error):
         save_batch(db, [reading(), reading(customer_id="CUST-B", heart_rate=999)], [("x", "invalid_json")])
     assert count_rows(db, "readings") == 0
@@ -105,4 +105,3 @@ def test_connect_gives_up_if_database_is_down(monkeypatch):
     monkeypatch.setattr(database.time, "sleep", lambda seconds: None)   # don't really wait
     with pytest.raises(SystemExit, match="Could not connect to PostgreSQL"):
         database.connect()
-

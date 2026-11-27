@@ -17,8 +17,8 @@ def test_reading_has_the_three_lab_fields():
     assert isinstance(reading["heart_rate"], int)
 
 
+# Without glitches or medical events, nobody should trigger an alert.
 def test_normal_life_stays_inside_each_patients_limits():
-    """Without glitches or medical events, nobody should trigger an alert."""
     random.seed(1)
     patients = [watched(n) for n in range(1, 41)]
     for _ in range(300):
@@ -61,8 +61,8 @@ def test_glitches_happen_at_the_bad_chance_rate():
     assert 0.12 < glitches / len(readings) < 0.28
 
 
+# --emergency must always give a CRITICAL alert (the only kind emailed by default).
 def test_demo_emergency_is_always_critical():
-    """--emergency must always give a CRITICAL alert (the only kind emailed by default)."""
     from pulseguard.simulation.generator import start_emergencies
     for seed in range(50):
         random.seed(seed)
@@ -72,4 +72,3 @@ def test_demo_emergency_is_always_critical():
         low = [start_watching(watched(1, low_limit=50, resting_bpm=70))]
         start_emergencies(low, ["PT-0001"], "low")
         assert low[0]["event_target"] <= 50 - 10              # 10+ below the limit = critical
-

@@ -27,8 +27,8 @@ def test_email_is_really_sent(mail_server):
     assert "full details here" in email["body"]
 
 
+# Anyone can read the top of the email; the technical error is only at the bottom.
 def test_system_problem_email_is_written_in_plain_words(mail_server):
-    """Anyone can read the top of the email; the technical error is only at the bottom."""
     send_failure_email("consumer", "could not connect to PostgreSQL", "Traceback (most recent call last): ...")
     body = mail_server[0]["body"]
     plain, technical = body.split("Technical details (for the IT team)")
@@ -50,8 +50,8 @@ def test_subject_says_what_stopped_and_why(mail_server, part, error, subject_end
     assert mail_server[0]["subject"] == "[PulseGuard] SYSTEM PROBLEM: " + subject_end
 
 
+# Stopping the consumer on purpose is not a failure.
 def test_ctrl_c_does_not_send_an_email(mail_server, monkeypatch):
-    """Stopping the consumer on purpose is not a failure."""
     class StopsWithCtrlC(FakeKafkaConsumer):
         def poll(self, timeout_ms=0):
             raise KeyboardInterrupt
@@ -68,9 +68,8 @@ def test_ctrl_c_does_not_send_an_email(mail_server, monkeypatch):
     assert mail_server == []
 
 
-
+# If the email server itself is down, we get a warning, not a second crash.
 def test_email_server_down_does_not_crash(monkeypatch):
-    """If the email server itself is down, we get a warning, not a second crash."""
     monkeypatch.setattr(config, "SMTP_HOST", "127.0.0.1")
     monkeypatch.setattr(config, "SMTP_PORT", 1)          # nothing listens on port 1
     monkeypatch.setattr(config, "EMAIL_ENABLED", True)
@@ -83,11 +82,10 @@ def test_no_email_when_turned_off(mail_server, monkeypatch):
     assert mail_server == []
 
 
-
 # Emails are short
 
+# Long error details are cut to the useful end, so the email stays short.
 def test_system_problem_email_is_short(mail_server):
-    """Long error details are cut to the useful end, so the email stays short."""
     long_traceback = "Traceback (most recent call last):\n" + "\n".join(f"  line {i}" for i in range(40))
     send_failure_email("consumer", "could not connect to PostgreSQL", long_traceback, retrying_every=10)
     body = mail_server[0]["body"]

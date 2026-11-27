@@ -41,8 +41,8 @@ def test_normal_start_sends_no_back_online_email(mail_server):
     assert mail_server == []
 
 
+# Failing again while already down must not reset the 'down since' time.
 def test_downtime_counts_from_the_first_failure(mail_server, monkeypatch):
-    """Failing again while already down must not reset the 'down since' time."""
     import json
     from pulseguard.notifications import back_online
     send_failure_email("consumer", "could not connect to PostgreSQL")
@@ -57,8 +57,8 @@ def test_downtime_is_easy_to_read(seconds, text):
     assert how_long(seconds) == text
 
 
+# The real consumer.main(): first run, the database is down; second run, it works.
 def test_consumer_down_then_restarted_sends_both_emails(mail_server, monkeypatch):
-    """The real consumer.main(): first run, the database is down; second run, it works."""
     def database_down(**settings):
         raise psycopg2.OperationalError("connection refused")
 
@@ -89,8 +89,8 @@ def test_consumer_down_then_restarted_sends_both_emails(mail_server, monkeypatch
 
 # Error cases (back online)
 
+# If the email server is down too, remember the problem and try again next start.
 def test_back_online_is_kept_if_email_cannot_be_sent(monkeypatch):
-    """If the email server is down too, remember the problem and try again next start."""
     import os
     from pulseguard.notifications import back_online
     back_online.mark_down("consumer", "database not reachable")

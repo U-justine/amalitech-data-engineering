@@ -7,9 +7,9 @@ START = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 LOW, HIGH = 50, 130   # this patient's limits
 
 
+# Feed one reading per second. Returns the opened/closed events
+# (and the "updated" ones too if keep_updates=True).
 def feed(state, heart_rates, patient="PT-0001", start_second=0, keep_updates=False):
-    """Feed one reading per second. Returns the opened/closed events
-    (and the "updated" ones too if keep_updates=True)."""
     events = []
     for i, hr in enumerate(heart_rates):
         reading = {"customer_id": patient, "recorded_at": START + timedelta(seconds=start_second + i),
@@ -80,8 +80,8 @@ def test_episode_id_is_the_same_if_readings_are_replayed():
 
 # Error cases
 
+# A single glitch or a 20-second spike should not wake anyone up.
 def test_short_spike_is_not_an_alert():
-    """A single glitch or a 20-second spike should not wake anyone up."""
     assert feed({}, [70, 200, 70]) == []
     assert feed({}, [70] + [150] * 20 + [70] * 10) == []
 
@@ -95,16 +95,16 @@ def test_switching_from_high_to_low_closes_and_starts_again():
     assert [(event, e["kind"]) for event, e in events] == [("opened", "high"), ("closed", "high"), ("opened", "low")]
 
 
+# If some readings were lost, the 30 seconds are measured by timestamps, not by counting.
 def test_readings_with_gaps_still_count_by_time():
-    """If some readings were lost, the 30 seconds are measured by timestamps, not by counting."""
     state = {}
     feed(state, [140], start_second=0)
     events = feed(state, [140], start_second=35)
     assert [event for event, _ in events] == ["opened"]
 
 
+# 135 (warning) for 31 s, then 155 (20+ above the limit): one "escalated" event, then only updates.
 def test_warning_that_gets_worse_is_escalated_once():
-    """135 (warning) for 31 s, then 155 (20+ above the limit): one "escalated" event, then only updates."""
     events = feed({}, [135] * 31 + [155] * 5, keep_updates=True)
     kinds = [event for event, _ in events]
     assert kinds.count("escalated") == 1
@@ -116,4 +116,3 @@ def test_alert_that_starts_critical_is_not_escalated():
     events = feed({}, [160] * 40, keep_updates=True)
     assert [event for event, _ in events].count("escalated") == 0
     assert events[0][1]["severity"] == "critical"
-

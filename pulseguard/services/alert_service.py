@@ -21,8 +21,8 @@ RETRY_EVERY_SECONDS = 15        # retry failed emails
 DATABASE_RETRY_SECONDS = 10     # wait while the database is down
 
 
+# Connect to Kafka (keeps trying for a minute while it starts).
 def connect_to_kafka():
-    """Connect to Kafka (keeps trying for a minute while it starts)."""
     for attempt in range(20):
         try:
             return KafkaConsumer(
@@ -38,6 +38,7 @@ def connect_to_kafka():
     raise SystemExit(f"Could not connect to Kafka at {KAFKA_SERVER}. Is 'docker compose up -d' running?")
 
 
+# Start here. If the service crashes, email the IT team before stopping.
 def main():
     try:
         run_alert_service()
@@ -46,8 +47,8 @@ def main():
         raise
 
 
+# One round: read alerts, send emails, cope if the database is down.
 def one_round(consumer, status):
-    """One round: read alerts, send emails, cope if the database is down."""
     try:
         if status["conn"] is None:
             raise CONNECTION_PROBLEMS[0]("no database connection")
@@ -72,6 +73,7 @@ def one_round(consumer, status):
         status["conn"] = reconnect(status["conn"])
 
 
+# Connect, send anything left from last time, then keep going round until Ctrl+C.
 def run_alert_service():
     conn = connect()
     consumer = connect_to_kafka()

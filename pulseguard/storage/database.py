@@ -12,10 +12,10 @@ from pulseguard.config import DB_SETTINGS
 CONNECTION_PROBLEMS = (psycopg2.OperationalError, psycopg2.InterfaceError)
 
 
+# Close the old (dead) connection and try once to open a new one.
+# After a database restart the old connection never works again.
+# Returns the new connection, or None if the database is still down.
 def reconnect(old_conn):
-    """Close the old (dead) connection and try once to open a new one.
-    After a database restart the old connection never works again.
-    Returns the new connection, or None if the database is still down."""
     if old_conn is not None:
         try:
             old_conn.close()
@@ -27,8 +27,8 @@ def reconnect(old_conn):
         return None                   # still down
 
 
+# Connect to the database (keeps trying for a minute while it starts).
 def connect():
-    """Connect to the database (keeps trying for a minute while it starts)."""
     for attempt in range(30):
         try:
             return psycopg2.connect(**DB_SETTINGS)
@@ -38,9 +38,9 @@ def connect():
     raise SystemExit("Could not connect to PostgreSQL. Is 'docker compose up -d' running?")
 
 
+# Save readings, rejected messages and alerts in one go (all or nothing).
+# Returns how many new readings were saved (duplicates are skipped).
 def save_batch(conn, good_readings, rejected, episode_events=()):
-    """Save readings, rejected messages and alerts in one go.
-    Returns how many new readings were saved (duplicates are skipped)."""
     saved = 0
     try:
         with conn.cursor() as cur:

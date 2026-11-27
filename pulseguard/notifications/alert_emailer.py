@@ -1,9 +1,14 @@
-# Emails the health alerts that still need one (used by alert_service.py).
-#   - The database tells us which alerts still need an email.
-#   - After sending, the alert is marked "emailed" -> never sent twice.
-#   - Email failed? It stays unmarked and is tried again later -> never lost.
-#   - EMAIL_MIN_SEVERITY=critical (default): only CRITICAL alerts are emailed (fewer emails, less
-#     "alarm fatigue"); warnings are still saved and shown in Grafana.
+# Sends the emails for health alerts. alert_service.py calls this.
+
+# I ask the database which alerts haven't been emailed yet, send them,
+# and mark each one as emailed so nobody gets the same email twice.
+
+# If an email fails I don't mark it, so it gets sent next time instead of getting lost.
+
+# By default I only email critical alerts. Too many emails and doctors start ignoring them.
+
+# Warnings are still saved and you can see them in Grafana.
+
 import json
 
 from pulseguard import config
@@ -11,8 +16,9 @@ from pulseguard.notifications.health_alerts import send_health_alert
 from pulseguard.storage.alerts_db import episodes_needing_email, mark_emailed, recent_readings
 
 
+# Finds alerts that need an email, sends them, and marks them as sent.
+# If an email fails, it skips marking it so it can try again next time.
 def send_pending_emails(conn):
-    """Email every alert not emailed yet. Returns how many were sent."""
     sent = 0
     for episode in episodes_needing_email(conn, config.EMAIL_MIN_SEVERITY):
         episode["recent"] = recent_readings(conn, episode["customer_id"], episode["started_at"])
@@ -33,8 +39,8 @@ def send_pending_emails(conn):
     return sent
 
 
+# Reads alert messages from Kafka, sends the emails, and saves the Kafka position.
 def process_alert_messages(consumer, conn):
-    """Read alert messages (up to 1 s), then send the emails."""
     batch = consumer.poll(timeout_ms=1000)
     messages = [m for partition_messages in batch.values() for m in partition_messages]
     for m in messages:

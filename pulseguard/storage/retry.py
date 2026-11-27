@@ -11,10 +11,10 @@ from pulseguard.storage.database import CONNECTION_PROBLEMS, reconnect, save_bat
 RETRY_EVERY_SECONDS = 10   # wait between tries
 
 
+# Wait without taking new messages, but keep polling so Kafka knows we're alive.
+# If a consumer doesn't poll for 5 minutes, Kafka assumes it died and gives
+# its partitions to another consumer.
 def wait_and_keep_kafka_happy(consumer, seconds):
-    """Wait without taking new messages, but keep polling so Kafka knows we're alive.
-    If a consumer doesn't poll for 5 minutes, Kafka assumes it died and gives
-    its partitions to another consumer."""
     partitions = consumer.assignment() if hasattr(consumer, "assignment") else set()
     if partitions:
         consumer.pause(*partitions)
@@ -29,12 +29,11 @@ def wait_and_keep_kafka_happy(consumer, seconds):
             break
 
 
+# Save one batch. If the database is down, wait and try the same batch again.
+# Nothing is committed to Kafka while we wait, so no reading gets lost.
+# Only connection problems are retried; anything else (a bug) is raised.
+# Returns (number of readings saved, the connection that worked).
 def save_until_it_works(conn, good, rejected, events, consumer, wait_seconds=None):
-    """Save one batch. If the database is down, wait and try the same batch again.
-
-    Nothing is committed to Kafka while we wait, so no reading gets lost.
-    Only connection problems are retried; anything else (a bug) is raised.
-    Returns (number of readings saved, the connection that worked)."""
     wait_seconds = RETRY_EVERY_SECONDS if wait_seconds is None else wait_seconds
     problem_reported = False
     while True:

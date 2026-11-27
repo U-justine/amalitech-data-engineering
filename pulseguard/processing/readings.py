@@ -7,8 +7,8 @@ from pulseguard.simulation.patients import limits_for, load_limits
 from pulseguard.storage.database import CONNECTION_PROBLEMS
 
 
+# Split messages into good readings and rejected ones.
 def sort_messages(messages, quiet=False, sent_times=None, received_at=None, limits=None):
-    """Split messages into good readings and rejected ones."""
     good, rejected = [], []
     for i, message in enumerate(messages):
         reading, problem = check_reading(message)
@@ -28,8 +28,8 @@ def sort_messages(messages, quiet=False, sent_times=None, received_at=None, limi
     return good, rejected
 
 
+# New patient seen? Reload the limits (at most every 30 s).
 def refresh_limits_if_needed(conn, state, readings):
-    """New patient seen? Reload the limits (at most every 30 s)."""
     unknown = any(r["customer_id"] not in state["limits"] for r in readings)
     if unknown and time.time() - state["limits_loaded_at"] > 30:
         state["limits_loaded_at"] = time.time()

@@ -26,8 +26,8 @@ from scripts.check_cases import RUN_ID, STORIES, TESTS, customer
 from scripts.check_report import explain_results, remove_test_data
 
 
+# 1. Send the test messages. Returns the text sent for each test.
 def send_tests():
-    """1. Send the test messages. Returns the text sent for each test."""
     producer = KafkaProducer(bootstrap_servers=KAFKA_SERVER, acks="all")
     sent_text = []
     for _, message, _ in TESTS:
@@ -45,9 +45,9 @@ def send_tests():
     return sent_text
 
 
+# 2. Wait (up to 30 s) until the test messages are handled.
+# Returns (saved rows, rejected {message: reason}, alerts {patient: [...]}).
 def wait_for_results(should_save, should_reject):
-    """2. Wait (up to 30 s) until the test messages are handled.
-    Returns (saved rows, rejected {message: reason}, alerts {patient: [...]})."""
     conn = psycopg2.connect(**DB_SETTINGS)
     conn.autocommit = True
     for _ in range(30):
@@ -72,9 +72,9 @@ def wait_for_results(should_save, should_reject):
     return saved, rejected, alerts
 
 
+# 3. Compare what happened with what should have happened, and print a table.
+# Returns a list of (description, expected, actual, ok).
 def check_each_test(sent_text, saved, rejected, alerts, should_save):
-    """3. Compare what happened with what should have happened, and print a table.
-    Returns a list of (description, expected, actual, ok)."""
     status_of = {(cust, recorded_at): status for cust, recorded_at, status in saved}
     results = []
     print(f"\n{'test':<24}{'expected':<34}{'actual':<34}result")

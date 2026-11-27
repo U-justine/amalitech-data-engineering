@@ -6,7 +6,7 @@
 # This file starts things and keeps looping.
 # What happens to each batch (check, alerts, save, commit) is in processing/batch.py.
 #
-# Nothing is lost: stop before step 6 and Kafka sends the batch again
+# Nothing is lost: stop before step 6 (the commit) and Kafka sends the batch again
 # (the database skips readings it already has).
 import argparse
 import time
@@ -26,8 +26,8 @@ from pulseguard.storage.alerts_db import load_open_episodes
 from pulseguard.storage.database import connect
 
 
+# Connect to Kafka (keeps trying for a minute while it starts).
 def connect_to_kafka():
-    """Connect to Kafka (keeps trying for a minute while it starts)."""
     for attempt in range(20):
         try:
             return KafkaConsumer(
@@ -43,6 +43,7 @@ def connect_to_kafka():
     raise SystemExit(f"Could not connect to Kafka at {KAFKA_SERVER}. Is 'docker compose up -d' running?")
 
 
+# Start here: read the options, run the consumer, and email the IT team if it crashes.
 def main():
     parser = argparse.ArgumentParser(description="Save heart rate readings from Kafka into PostgreSQL")
     parser.add_argument("--quiet", action="store_true", help="only print alerts and a summary every 5 seconds")
@@ -56,6 +57,8 @@ def main():
         raise
 
 
+# Connect to everything, then handle batches until Ctrl+C.
+# Every 5 seconds it prints the totals and the timing.
 def run_consumer(args):
     conn = connect()
     state = new_state(load_limits(conn), load_open_episodes(conn))

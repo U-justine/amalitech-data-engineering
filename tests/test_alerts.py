@@ -47,7 +47,6 @@ def test_open_alert_survives_a_consumer_restart(db):
     assert rows(db, "SELECT count(*), max(reading_count) FROM alert_episodes") == [(1, 40)]
 
 
-
 def test_replayed_readings_do_not_create_a_second_alert(db):
     limits = {"PT-0007": (50, 130)}
     messages = [msg("PT-0007", s, 140) for s in range(40)]

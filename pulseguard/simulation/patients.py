@@ -15,13 +15,13 @@ PROFILES = {
 }
 
 
+# High limit = 85% of the maximum heart rate (220 - age).
 def high_limit_for_age(age):
-    """High limit = 85% of the maximum heart rate (220 - age)."""
     return round(0.85 * (220 - age))
 
 
+# Make a random patient, e.g. PT-0007, a 72-year-old senior.
 def make_patient(number, rng=random):
-    """Make a random patient, e.g. PT-0007, a 72-year-old senior."""
     profile = rng.choices(["athlete", "adult", "senior"], weights=[2, 5, 3])[0]
     (age_min, age_max), (rest_min, rest_max), low_limit = PROFILES[profile]
     age = rng.randint(age_min, age_max)
@@ -35,8 +35,8 @@ def make_patient(number, rng=random):
     }
 
 
+# Get `count` patients from the database, adding new ones if there aren't enough yet.
 def load_or_create_patients(conn, count):
-    """Get `count` patients from the database, adding new ones if needed."""
     with conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM patients")
         existing = cur.fetchone()[0]
@@ -58,8 +58,8 @@ def load_or_create_patients(conn, count):
     return patients
 
 
+# Every patient's limits: {customer_id: (low, high)}.
 def load_limits(conn):
-    """Every patient's limits: {customer_id: (low, high)}."""
     with conn.cursor() as cur:
         cur.execute("SELECT customer_id, low_limit, high_limit FROM patients")
         limits = {customer_id: (low, high) for customer_id, low, high in cur.fetchall()}
@@ -67,6 +67,6 @@ def load_limits(conn):
     return limits
 
 
+# One patient's (low, high), or the default limits if we don't know them.
 def limits_for(limits, customer_id):
-    """One patient's (low, high), or the default limits if unknown."""
     return limits.get(customer_id, (config.NORMAL_MIN, config.NORMAL_MAX))

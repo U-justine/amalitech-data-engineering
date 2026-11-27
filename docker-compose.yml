@@ -2,7 +2,7 @@
 #
 #   docker compose up -d     # Zookeeper, Kafka, Kafka UI, PostgreSQL, Mailpit, Grafana
 #
-# The Python programs (producer, consumer, alert service) run in your own terminal windows.
+## The producer, consumer and alert service are not in here, I run them myself in separate terminals.
 #
 services:
   zookeeper:
