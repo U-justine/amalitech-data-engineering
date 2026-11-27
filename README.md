@@ -305,8 +305,8 @@ stands out as a spike.
 | Kind | Command | What it proves |
 |---|---|---|
 | Unit + database + email tests | see below | every part, including 60+ error cases |
-| Email tests | `pytest tests/test_email.py tests/test_failure_emails.py tests/test_back_online.py tests/test_alert_emails.py -v` | emails really arrive at a real (local) email server, exactly once |
-| End-to-end | `python -m scripts.check_pipeline` (consumer and alert service running) | 19 checks through real Kafka, PostgreSQL and email; ends `19/19 passed` |
+| Email tests | `pytest tests/test_email.py tests/test_failure_emails.py tests/test_back_online.py tests/test_alert_emails.py -v`<br>Files: [test_email.py](tests/test_email.py), [test_failure_emails.py](tests/test_failure_emails.py), [test_back_online.py](tests/test_back_online.py), [test_alert_emails.py](tests/test_alert_emails.py) | emails really arrive at a real (local) email server, exactly once |
+| End-to-end | `python -m scripts.check_pipeline` (consumer and alert service running)<br>File: [check_pipeline.py](scripts/check_pipeline.py) | 19 checks through real Kafka, PostgreSQL and email; ends `19/19 passed` |
 
 The self-check uses its own test patients (`TEST-...`). They never reach doctors: their alert
 emails go to the IT team marked `[TEST]`, the dashboards hide them, and they are deleted from
